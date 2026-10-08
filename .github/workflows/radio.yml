@@ -1,0 +1,23 @@
+name: رادیو ایرانا
+on:
+  push:
+    paths: ["bulletin/latest.json"]
+  workflow_dispatch:
+concurrency:
+  group: radio
+  cancel-in-progress: false
+jobs:
+  broadcast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: پخش در تلگرام
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          VOICE_ID: g8OwRTuNvpJKpiVarLb6
+          TELEGRAM_CHANNEL: "@IranaMediaNews"
+        run: python3 radio.py
