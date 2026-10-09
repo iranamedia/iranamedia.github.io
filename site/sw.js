@@ -1,5 +1,5 @@
 // Irana service worker: the app shell works offline; news and audio always come fresh from the network.
-const SHELL = 'irana-shell-v1';
+const SHELL = 'irana-shell-v2';
 const FILES = ['./', 'index.html', 'irana.css', 'app.js', 'logo.jpg', 'icon-192.png', 'manifest.webmanifest'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
