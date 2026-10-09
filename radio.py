@@ -78,15 +78,15 @@ ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
 def opening(b):
-    """سرآغاز: نام رسانه، ساعت و سه تیتر مهم؛ روی زیرآهنگ خوانده می‌شود."""
+    """سرآغاز: نام رسانه و ساعت، سپس سه تیتر نخست یکراست پشت هم؛ روی زیرآهنگ خوانده می‌شود."""
     heads = [it["title"].rstrip(".") for it in b["items"][:HEADLINES]]
-    return f"اینجا رسانه ایرانا است. {b['stamp']}. تیترهای مهم: " + ". ".join(heads) + "."
+    return f"اینجا رسانه ایرانا است. {b['stamp']}.\n\n" + ".\n\n".join(heads) + "."
 
 
 def script(b):
     """متن گفتاری خبرها، پس از سرآغاز."""
-    parts = [f"{it['title'].rstrip('.')}. {it['body']}" for it in b["items"]]
-    parts.append("رسانه ایرانا؛ تازه‌ترین خبرها را سر ساعت آینده بشنوید.")
+    parts = [it["body"] for it in b["items"]]          # بی‌تیتر: تیترها در سرآغاز آمده‌اند
+    parts.append("رسانه ایرانا؛ تازه‌ترین رویدادها را سر ساعت آینده بشنوید.")
     return parts
 
 
