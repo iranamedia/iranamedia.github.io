@@ -4,7 +4,7 @@ on:
     inputs:
       voices:
         description: "نام:شناسه‌ی آوا، با ویرگول جدا"
-        default: "sarah:EXAVITQu4vr4xnSDxMaL,charlotte:XB0fDUnXU5powFXDhCwa,lily:pFZP5JQG7iQjIQuC4Bku"
+        default: "charlotte:XB0fDUnXU5powFXDhCwa"
 permissions:
   contents: write
 jobs:
