@@ -175,7 +175,7 @@ def join(files, out):
 
 
 def caption(b):
-    head = f"🎙 رسانه ایرانا\n{b['stamp']}\n\n"
+    head = f"🎙 {b['stamp']}\n\n"
     lines, size = [], len(head) + 40
     for it in b["items"]:
         l = "▪️ " + it["title"]
@@ -184,9 +184,9 @@ def caption(b):
     return head + "\n".join(lines) + f"\n\n{CHANNEL}"
 
 
-def send(path, cap, title):
+def send(path, cap, stamp):
     boundary = uuid.uuid4().hex
-    fields = {"chat_id": CHANNEL, "caption": cap, "title": title, "performer": "رسانه ایرانا"}
+    fields = {"chat_id": CHANNEL, "caption": cap, "title": "رسانه ایرانا", "performer": stamp}
     body = b""
     for k, v in fields.items():
         body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
@@ -227,7 +227,7 @@ def main(src="bulletin/latest.json", dry=False):
         if os.environ.get("SAVE_DIR"):                  # برای اپ ایرانا
             os.makedirs(os.environ["SAVE_DIR"], exist_ok=True)
             shutil.copy(out, os.path.join(os.environ["SAVE_DIR"], "latest.mp3"))
-        send(out, caption(b), f"رسانه ایرانا · {b['stamp']}")
+        send(out, caption(b), b["stamp"])
     print("sent")
 
 
