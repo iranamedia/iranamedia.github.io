@@ -5,8 +5,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          U=https://claude.ai/artifact/67QZ7tHCM75ddqt6DfJLv8
-          curl -sSL -A "Mozilla/5.0" -o p.html -w "code=%{http_code} type=%{content_type} url=%{url_effective}\n" $U | tee r.txt
-          echo "::notice::$(cat r.txt) size=$(wc -c < p.html) start=$(grep -c BULLETIN-START p.html) stamp=$(grep -c 'class=\"stamp\"' p.html)"
-          grep -oE 'https?://[a-zA-Z0-9.-]+(claudeusercontent|anthropic|claude)[a-zA-Z0-9./_?=&-]*' p.html | sort -u | head -15 | while read l; do echo "::notice::link $l"; done
-          echo "::notice::head $(head -c 300 p.html | tr '\n' ' ' | tr -d '<>')"
+          F=https://2962abe3-efdb-4a3e-81c3-b386fdd234fd.frame.claudeusercontent.com
+          for path in / /index.html; do
+            curl -sSL -A "Mozilla/5.0" -H "Referer: https://claude.ai/" -o p.html -w "code=%{http_code} type=%{content_type}" "$F$path" > r.txt || true
+            echo "::notice::$path $(cat r.txt) size=$(wc -c < p.html) start=$(grep -c BULLETIN-START p.html) stamp=$(grep -o 'class="stamp">[^<]*' p.html | head -1)"
+            echo "::notice::$path head $(head -c 400 p.html | tr '\n' ' ' | tr -d '<>')"
+          done
