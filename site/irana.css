@@ -1,0 +1,87 @@
+/* Irana visual identity — shared by the claude.ai page and the web app.
+   Layout: night-lapis ground with a faint gold girih lattice; Nastaliq masthead; gold-ruled single column of reports. */
+:root {
+  --night: #0a1530;
+  --lapis: #12245a;
+  --lapis-2: #1a3172;
+  --gold: #e0b452;
+  --gold-deep: #a97d22;
+  --ivory: #f5ecd6;
+  --mist: #bcc6df;
+  --turq: #46b8ae;
+  --live: #e2483d;
+  --line: rgba(224, 180, 82, .28);
+  --font-crown: "Noto Nastaliq Urdu", "Vazirmatn", serif;
+  --font-roman: "Cinzel", "Times New Roman", serif;
+  --font-body: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html { direction: rtl; background: var(--night); }
+body {
+  margin: 0; color: var(--ivory); font-family: var(--font-body); font-size: 17px; line-height: 2;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23e0b452' stroke-opacity='.07' stroke-width='1'%3E%3Cpath d='M36 10 L44 28 L62 36 L44 44 L36 62 L28 44 L10 36 L28 28 Z'/%3E%3Crect x='22' y='22' width='28' height='28' transform='rotate(45 36 36)'/%3E%3Cpath d='M0 0 L10 36 L0 72 M72 0 L62 36 L72 72 M0 0 L36 10 L72 0 M0 72 L36 62 L72 72'/%3E%3C/g%3E%3C/svg%3E"),
+    radial-gradient(120% 70% at 50% -10%, var(--lapis-2) 0%, var(--lapis) 35%, var(--night) 75%);
+  background-attachment: fixed, fixed;
+  padding-inline: 16px; padding-block: 0 56px;
+  min-height: 100%;
+}
+.wrap { max-width: 46rem; margin-inline: auto; display: flex; flex-direction: column; gap: 32px; }
+a { color: var(--gold); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+
+/* Masthead */
+header.crown { padding-block: 40px 8px; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.crown .seal { width: 92px; height: 92px; border-radius: 50%; object-fit: cover;
+  box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold), 0 10px 40px rgba(224,180,82,.25); }
+.crown h1 { margin: 10px 0 0; font-family: var(--font-crown); font-weight: 700; font-size: clamp(2.4rem, 9vw, 4.2rem);
+  line-height: 2.1; color: var(--gold);
+  background: linear-gradient(180deg, #f7dc93 0%, var(--gold) 45%, var(--gold-deep) 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 24px rgba(224,180,82,.18); }
+.crown .roman { font-family: var(--font-roman); font-weight: 600; letter-spacing: .42em; font-size: .9rem;
+  color: var(--mist); margin-inline-start: .42em; direction: ltr; }
+.crown .tagline { margin: 6px 0 0; font-size: 1.2rem; font-weight: 700; color: var(--ivory); }
+.crown .cadence { margin: 0; color: var(--mist); font-size: .95rem; }
+.ornament { display: flex; align-items: center; gap: 12px; color: var(--gold); width: 100%; max-width: 30rem; margin-inline: auto; }
+.ornament::before, .ornament::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+.ornament svg { width: 18px; height: 18px; flex: none; fill: currentColor; }
+
+/* Actions */
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 20px; border-radius: 999px;
+  font: 700 1rem var(--font-body); text-decoration: none; cursor: pointer; border: 1px solid var(--line);
+  color: var(--ivory); background: rgba(255,255,255,.04); transition: background .2s, border-color .2s; }
+.btn:hover { background: rgba(224,180,82,.12); border-color: var(--gold); }
+.btn.primary { color: #1b1404; border-color: transparent;
+  background: linear-gradient(180deg, #f3d17e, var(--gold) 55%, var(--gold-deep)); box-shadow: 0 6px 24px rgba(224,180,82,.25); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn svg { width: 18px; height: 18px; fill: currentColor; flex: none; }
+
+/* Live stamp */
+.stamp { align-self: center; display: inline-flex; align-items: center; gap: 10px; padding: 6px 18px; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(10,21,48,.6); color: var(--gold); font-weight: 700;
+  font-size: .98rem; font-variant-numeric: tabular-nums; text-align: center; }
+.stamp::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--live); flex: none;
+  box-shadow: 0 0 0 0 rgba(226,72,61,.6); animation: pulse 2s infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(226,72,61,0); } 100% { box-shadow: 0 0 0 0 rgba(226,72,61,0); } }
+
+/* Reports */
+.wrap > section { display: flex; flex-direction: column; }
+article.story { padding-block: 22px; border-bottom: 1px solid var(--line); min-width: 0; }
+article.story:last-child { border-bottom: 0; }
+article.story h3 { margin: 0 0 6px; font-size: 1.22rem; line-height: 1.75; font-weight: 800; color: var(--ivory); text-wrap: balance; }
+article.story p { margin: 0; color: var(--mist); }
+article.story:first-child { padding: 26px 24px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 14px;
+  background: linear-gradient(160deg, rgba(26,49,114,.75), rgba(10,21,48,.55)); box-shadow: inset 0 1px 0 rgba(224,180,82,.25); }
+article.story:first-child h3 { font-size: clamp(1.4rem, 4vw, 1.8rem); color: var(--gold); }
+article.story:first-child p { color: var(--ivory); font-size: 1.05rem; }
+
+/* Sources + note */
+.sources { font-size: .85rem; color: var(--mist); border-top: 1px solid var(--line); padding-block-start: 16px; }
+.sources h3 { margin: 0 0 6px; font-size: .95rem; color: var(--gold); font-weight: 700; }
+.sources ol { margin: 0; padding-inline-start: 1.4em; display: flex; flex-direction: column; gap: 4px; }
+.sources a { color: var(--mist); text-decoration-color: var(--line); word-break: break-word; }
+.sources a:hover { color: var(--gold); }
+.note { color: var(--mist); opacity: .75; font-size: .82rem; margin: 0; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .stamp::before { animation: none; } }

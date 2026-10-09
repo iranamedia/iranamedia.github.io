@@ -1,5 +1,5 @@
 """رادیو ایرانا: خبرنامه‌ی تازه را با صدای ElevenLabs می‌خواند و به کانال تلگرام می‌فرستد."""
-import json, os, subprocess, sys, tempfile, time, urllib.request, urllib.error, uuid
+import json, os, shutil, subprocess, sys, tempfile, time, urllib.request, urllib.error, uuid
 
 
 def fail(msg):
@@ -200,6 +200,9 @@ def main(src="bulletin/latest.json", dry=False):
             print("tts", n, len(c), tts(c, P(f"b{n:02d}.mp3")))
             norm(P(f"b{n:02d}.mp3"), P(f"10_{n:02d}.wav")); seq.append(P(f"10_{n:02d}.wav"))
         out = P("irana.mp3"); join(seq, out)
+        if os.environ.get("SAVE_DIR"):                  # برای اپ ایرانا
+            os.makedirs(os.environ["SAVE_DIR"], exist_ok=True)
+            shutil.copy(out, os.path.join(os.environ["SAVE_DIR"], "latest.mp3"))
         send(out, caption(b), f"رسانه ایرانا · {b['stamp']}")
     print("sent")
 
