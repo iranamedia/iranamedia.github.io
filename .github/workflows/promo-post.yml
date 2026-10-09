@@ -13,10 +13,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           curl -sS -o r.json \
-            -F chat_id=@IranaMediaNews \
+            --form-string chat_id=@IranaMediaNews \
             -F video=@assets/promo.mp4 \
             -F width=1080 -F height=1920 -F supports_streaming=true \
-            -F caption="رسانه ایرانا
+            --form-string caption="رسانه ایرانا
           تازه‌ترین رویدادهای ایران
           شبانروزی، سر هر ساعت
 
