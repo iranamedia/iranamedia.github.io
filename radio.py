@@ -153,6 +153,21 @@ def norm(src, out):
     ff("-i", src, "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le", out)
 
 
+SPEED = float(os.environ.get("VOICE_SPEED", "1.08"))   # کمی تندتر از خوانش خام
+GAP = float(os.environ.get("STORY_GAP", "2.0"))        # درنگ میان خبرها (ثانیه)
+
+
+def voice(src, out):
+    """آوا: کمی تندتر، بی‌سکوت در آغاز و پایان (تا درنگ‌ها دقیق باشند)."""
+    trim = "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05"
+    ff("-i", src, "-af", f"atempo={SPEED},{trim},areverse,{trim},areverse",
+       "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le", out)
+
+
+def silence(sec, out):
+    ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", f"{sec}", "-c:a", "pcm_s16le", out)
+
+
 def over_bed(voice, out, lead=2.0, tail=1.5):
     """صدای تیترها روی زیرآهنگ: آهنگ با بلندی آغاز می‌شود، زیر صدا پایین می‌رود و در پایان محو می‌شود."""
     bed = os.path.join(ASSETS, "bed.mp3")
@@ -207,24 +222,31 @@ def send(path, cap, stamp):
 def main(src="bulletin/latest.json", dry=False):
     b = json.load(open(src, encoding="utf-8"))
     if not b.get("items"): print("no items; nothing to send"); return
-    head, parts = opening(b), chunks(script(b))
+    head = opening(b)
+    parts = [chunks([p]) for p in script(b)]          # هر خبر جدا، تا میانشان درنگ باشد
     if dry:
         print("HEAD |", head)
-        for c in parts: print(len(c), "|", c[:80].replace("\n", " "), "…")
+        for cs in parts:
+            for c in cs: print(len(c), "|", c[:80].replace("\n", " "), "…")
         print(caption(b)); return
     if not API_KEY or not BOT_TOKEN:
         fail("missing secret: " + ", ".join(n for n, v in (("ELEVENLABS_API_KEY", API_KEY), ("TELEGRAM_BOT_TOKEN", BOT_TOKEN)) if not v))
     with tempfile.TemporaryDirectory() as d:
         P = lambda n: os.path.join(d, n)
         print("tts head", tts(head, P("head.mp3")))
-        over_bed(P("head.mp3"), P("00_head.wav"))
+        voice(P("head.mp3"), P("head.wav"))
+        over_bed(P("head.wav"), P("00_head.wav"))
+        silence(GAP, P("gap.wav"))
         seq = [P("00_head.wav")]
         sting = os.path.join(ASSETS, "sting.mp3")
         if os.path.exists(sting):
             norm(sting, P("01_sting.wav")); seq.append(P("01_sting.wav"))
-        for n, c in enumerate(parts):
-            print("tts", n, len(c), tts(c, P(f"b{n:02d}.mp3")))
-            norm(P(f"b{n:02d}.mp3"), P(f"10_{n:02d}.wav")); seq.append(P(f"10_{n:02d}.wav"))
+        for n, cs in enumerate(parts):
+            if n: seq.append(P("gap.wav"))
+            for m, c in enumerate(cs):
+                f = f"b{n:02d}_{m}"
+                print("tts", n, m, len(c), tts(c, P(f + ".mp3")))
+                voice(P(f + ".mp3"), P(f + ".wav")); seq.append(P(f + ".wav"))
         promo = os.path.join(ASSETS, "promo.mp3")      # آگهی ایرانا در پایان هر بخش خبری
         if os.path.exists(promo):
             norm(promo, P("90_promo.wav")); seq.append(P("90_promo.wav"))
