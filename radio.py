@@ -1,6 +1,14 @@
 """رادیو ایرانا: خبرنامه‌ی تازه را با صدای ElevenLabs می‌خواند و به کانال تلگرام می‌فرستد."""
 import json, os, subprocess, sys, tempfile, time, urllib.request, urllib.error, uuid
 
+
+def fail(msg):
+    """خطا را به‌صورت هشدار GitHub نشان بده تا در خلاصه‌ی اجرا دیده شود؛ رازها را پنهان کن."""
+    for secret in (API_KEY, BOT_TOKEN):
+        if secret: msg = msg.replace(secret, "***")
+    print(f"::error::{msg}", flush=True)
+    sys.exit(1)
+
 API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 VOICE_ID = os.environ.get("VOICE_ID", "g8OwRTuNvpJKpiVarLb6")
@@ -45,7 +53,7 @@ def tts(text, path):
                 last = f"{model}: {e.code} {e.read()[:300]!r}"
                 if e.code in (400, 422): break          # این مدل این متن را نمی‌پذیرد؛ مدل بعدی
                 time.sleep(5 * (attempt + 1))
-    sys.exit(f"ElevenLabs failed: {last}")
+    fail(f"ElevenLabs failed: {last}")
 
 
 def join(files, out):
@@ -80,8 +88,8 @@ def send(path, cap, title):
         with urllib.request.urlopen(req, timeout=180) as r:
             res = json.load(r)
     except urllib.error.HTTPError as e:
-        sys.exit(f"Telegram failed: {e.code} {e.read()[:300]!r}")
-    if not res.get("ok"): sys.exit(f"Telegram failed: {res}")
+        fail(f"Telegram failed: {e.code} {e.read()[:300]!r}")
+    if not res.get("ok"): fail(f"Telegram failed: {res}")
 
 
 def main(src="bulletin/latest.json", dry=False):
@@ -91,7 +99,7 @@ def main(src="bulletin/latest.json", dry=False):
     if dry:
         for c in parts: print(len(c), "|", c[:80].replace("\n", " "), "…")
         print(caption(b)); return
-    if not API_KEY or not BOT_TOKEN: sys.exit("missing ELEVENLABS_API_KEY or TELEGRAM_BOT_TOKEN secret")
+    if not API_KEY or not BOT_TOKEN: fail("missing secret: " + ", ".join(n for n, v in (("ELEVENLABS_API_KEY", API_KEY), ("TELEGRAM_BOT_TOKEN", BOT_TOKEN)) if not v))
     with tempfile.TemporaryDirectory() as d:
         files = []
         for n, c in enumerate(parts):
