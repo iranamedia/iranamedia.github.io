@@ -17,11 +17,19 @@ MODELS = [m for m in os.environ.get("TTS_MODELS", "eleven_v3,eleven_multilingual
 MAX_CHARS = 2500
 
 
+HEADLINES = 3
+ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+
+
+def opening(b):
+    """سرآغاز: نام رسانه، ساعت و سه تیتر مهم؛ روی زیرآهنگ خوانده می‌شود."""
+    heads = [it["title"].rstrip(".") for it in b["items"][:HEADLINES]]
+    return f"اینجا رسانه ایرانا است. {b['stamp']}. تیترهای مهم: " + ". ".join(heads) + "."
+
+
 def script(b):
-    """متن گفتاری: آغاز، خبرها، پایان."""
-    parts = [f"اینجا رسانه ایرانا است؛ تازه‌ترین رویدادهای ایران. {b['stamp']}."]
-    for it in b["items"]:
-        parts.append(f"{it['title'].rstrip('.')}. {it['body']}")
+    """متن گفتاری خبرها، پس از سرآغاز."""
+    parts = [f"{it['title'].rstrip('.')}. {it['body']}" for it in b["items"]]
     parts.append("رسانه ایرانا؛ تازه‌ترین خبرها را سر ساعت آینده بشنوید.")
     return parts
 
@@ -56,12 +64,41 @@ def tts(text, path):
     fail(f"ElevenLabs failed: {last}")
 
 
+def ff(*args):
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *args], check=True)
+
+
+def dur(path):
+    return float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                                          "-of", "csv=p=0", path]).decode().strip())
+
+
+def norm(src, out):
+    """همه‌ی تکه‌ها یک‌دست: ۴۴۱۰۰ هرتز، دوکاناله."""
+    ff("-i", src, "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le", out)
+
+
+def over_bed(voice, out, lead=2.0, tail=1.5):
+    """صدای تیترها روی زیرآهنگ: آهنگ با بلندی آغاز می‌شود، زیر صدا پایین می‌رود و در پایان محو می‌شود."""
+    bed = os.path.join(ASSETS, "bed.mp3")
+    if not os.path.exists(bed):
+        return norm(voice, out)
+    total = lead + dur(voice) + tail
+    ff("-i", voice, "-stream_loop", "-1", "-i", bed, "-filter_complex",
+       f"[0:a]aresample=44100,aformat=channel_layouts=stereo,adelay={int(lead*1000)}:all=1,apad,asplit=2[v][sc];"
+       f"[1:a]aresample=44100,aformat=channel_layouts=stereo,volume=0.55[m];"
+       f"[m][sc]sidechaincompress=threshold=0.02:ratio=10:attack=40:release=600[duck];"
+       f"[v][duck]amix=inputs=2:duration=longest:normalize=0,atrim=0:{total:.2f},"
+       f"afade=t=in:d=0.4,afade=t=out:st={total-tail:.2f}:d={tail}",
+       "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le", out)
+
+
 def join(files, out):
     lst = out + ".txt"
     with open(lst, "w") as f:
         for p in files: f.write(f"file '{p}'\n")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst,
-                    "-c:a", "libmp3lame", "-b:a", "128k", "-metadata", "title=رسانه ایرانا", out], check=True)
+    ff("-f", "concat", "-safe", "0", "-i", lst, "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
+       "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "128k", "-metadata", "title=رسانه ایرانا", out)
 
 
 def caption(b):
@@ -95,16 +132,25 @@ def send(path, cap, title):
 def main(src="bulletin/latest.json", dry=False):
     b = json.load(open(src, encoding="utf-8"))
     if not b.get("items"): print("no items; nothing to send"); return
-    parts = chunks(script(b))
+    head, parts = opening(b), chunks(script(b))
     if dry:
+        print("HEAD |", head)
         for c in parts: print(len(c), "|", c[:80].replace("\n", " "), "…")
         print(caption(b)); return
-    if not API_KEY or not BOT_TOKEN: fail("missing secret: " + ", ".join(n for n, v in (("ELEVENLABS_API_KEY", API_KEY), ("TELEGRAM_BOT_TOKEN", BOT_TOKEN)) if not v))
+    if not API_KEY or not BOT_TOKEN:
+        fail("missing secret: " + ", ".join(n for n, v in (("ELEVENLABS_API_KEY", API_KEY), ("TELEGRAM_BOT_TOKEN", BOT_TOKEN)) if not v))
     with tempfile.TemporaryDirectory() as d:
-        files = []
+        P = lambda n: os.path.join(d, n)
+        print("tts head", tts(head, P("head.mp3")))
+        over_bed(P("head.mp3"), P("00_head.wav"))
+        seq = [P("00_head.wav")]
+        sting = os.path.join(ASSETS, "sting.mp3")
+        if os.path.exists(sting):
+            norm(sting, P("01_sting.wav")); seq.append(P("01_sting.wav"))
         for n, c in enumerate(parts):
-            p = os.path.join(d, f"{n:02d}.mp3"); print("tts", n, len(c), tts(c, p)); files.append(p)
-        out = os.path.join(d, "irana.mp3"); join(files, out)
+            print("tts", n, len(c), tts(c, P(f"b{n:02d}.mp3")))
+            norm(P(f"b{n:02d}.mp3"), P(f"10_{n:02d}.wav")); seq.append(P(f"10_{n:02d}.wav"))
+        out = P("irana.mp3"); join(seq, out)
         send(out, caption(b), f"رسانه ایرانا · {b['stamp']}")
     print("sent")
 
