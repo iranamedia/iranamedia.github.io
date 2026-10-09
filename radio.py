@@ -17,6 +17,54 @@ MODELS = [m for m in os.environ.get("TTS_MODELS", "eleven_v3,eleven_multilingual
 MAX_CHARS = 2500
 
 
+# ---- خواندن درست شماره‌ها: پیش از گفتار، شماره‌ها به واژه برمی‌گردند ----
+import re
+
+_ONES = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه", "ده", "یازده", "دوازده", "سیزده",
+         "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"]
+_TENS = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"]
+_HUNDS = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"]
+_BIG = ["", "هزار", "میلیون", "میلیارد", "تریلیون"]
+_MONTHS = "فروردین|اردیبهشت|خرداد|تیر|امرداد|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند"
+_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+
+
+def _under1000(n):
+    parts = []
+    if n >= 100: parts.append(_HUNDS[n // 100]); n %= 100
+    if n >= 20: parts.append(_TENS[n // 10]); n %= 10
+    if n: parts.append(_ONES[n])
+    return " و ".join(parts)
+
+
+def words(n):
+    if n == 0: return "صفر"
+    groups, i = [], 0
+    while n and i < len(_BIG):
+        n, g = divmod(n, 1000)
+        if g: groups.append(_under1000(g) + (" " + _BIG[i] if _BIG[i] else ""))
+        i += 1
+    return " و ".join(reversed(groups))
+
+
+def ordinal(n):
+    w = words(n)
+    if w.endswith("سه"): return w[:-2] + "سوم"
+    if w.endswith("ی"): return w + "‌ام"
+    return w + "م"
+
+
+def speakable(text):
+    """شماره‌ها را برای گوینده به واژه برمی‌گرداند؛ روز ماه به‌صورت ترتیبی (پانزدهم مهر)."""
+    t = text.translate(_DIGITS)
+    t = re.sub(r"(?<=\d)[٬,](?=\d{3})", "", t)
+    t = re.sub(r"(\d+)\s+(" + _MONTHS + r")", lambda m: ordinal(int(m.group(1))) + " " + m.group(2), t)
+    t = re.sub(r"(\d+)[.٫/](\d+)", lambda m: words(int(m.group(1))) + " ممیز " + words(int(m.group(2))), t)
+    t = re.sub(r"(\d+)\s*[%٪]", lambda m: words(int(m.group(1))) + " درصد", t)
+    t = re.sub(r"\d+", lambda m: words(int(m.group(0))), t)
+    return t
+
+
 HEADLINES = 3
 ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
@@ -46,6 +94,7 @@ def chunks(parts):
 
 
 def tts(text, path):
+    text = speakable(text)
     last = None
     for model in MODELS:
         req = urllib.request.Request(
