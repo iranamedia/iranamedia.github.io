@@ -64,7 +64,7 @@ SAY = {
 
 def speakable(text):
     """شماره‌ها را برای گوینده به واژه برمی‌گرداند؛ روز ماه به‌صورت ترتیبی (پانزدهم مهر)."""
-    t = text.translate(_DIGITS)
+    t = text.translate(_DIGITS).replace("جمعه", "آدینه")
     for k, v in SAY.items():
         t = re.sub(r"(?<![\w\u200c])" + k + r"(?![\w\u200c])", v, t)
     t = re.sub(r"(?<=\d)[٬,](?=\d{3})", "", t)
@@ -79,10 +79,24 @@ HEADLINES = 3
 ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
+def spoken_time(stamp):
+    """«ساعت ۷ به وقت تهران، جمعه ۱۷ مهر سال ۲۵۸۵» ← «هفت بامدادِ ایران، آدینه هفدهم مهرماه سال ۲۵۸۵»."""
+    t = stamp.translate(_DIGITS).replace("جمعه", "آدینه")
+    m = re.search(r"ساعت\s*(\d+)(?::(\d+))?.*?،\s*(\S+)\s+(\d+)\s+(" + _MONTHS + r")\s+سال\s+(\d+)", t)
+    if not m: return t
+    h, mi, wd, day, mon, yr = m.groups()
+    h = int(h)
+    if h == 0:        hp = "نیمه‌شبِ ایران"
+    elif h < 12:      hp = f"{words(h)} بامدادِ ایران"
+    else:             hp = f"ساعت {words(h)} ایران"
+    if mi and int(mi): hp = hp.replace(words(h), f"{words(h)} و {words(int(mi))} دقیقه", 1)
+    return f"{hp}، {wd} {ordinal(int(day))}ِ {mon}ماه سال {yr}"
+
+
 def opening(b):
     """سرآغاز: نام رسانه و ساعت، سپس سه تیتر نخست یکراست پشت هم؛ روی زیرآهنگ خوانده می‌شود."""
     heads = [it["title"].rstrip(".") for it in b["items"][:HEADLINES]]
-    return f"اینجا رسانه ایرانا است. {b['stamp']}.\n\n" + ".\n\n".join(heads) + "."
+    return f"اینجا رسانه ایرانا است. {spoken_time(b['stamp'])}.\n\n" + ".\n\n".join(heads) + "."
 
 
 def script(b):
@@ -221,6 +235,8 @@ def send(path, cap, stamp):
 
 def main(src="bulletin/latest.json", dry=False):
     b = json.load(open(src, encoding="utf-8"))
+    J = lambda x: x.replace("جمعه", "آدینه")         # رسانه ایرانا «آدینه» می‌گوید، نه «جمعه»
+    b["stamp"] = J(b["stamp"]); b["items"] = [{k: J(v) for k, v in it.items()} for it in b.get("items", [])]
     if not b.get("items"): print("no items; nothing to send"); return
     head = opening(b)
     parts = [chunks([p]) for p in script(b)]          # هر خبر جدا، تا میانشان درنگ باشد
