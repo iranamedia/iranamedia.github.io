@@ -57,8 +57,9 @@ def ordinal(n):
 # نام‌هایی که گوینده باید به شیوه‌ی درست بخواند (نوشتار آوایی، فقط برای صدا)
 SAY = {
     "هرانا": "هْرانا",   # Hrana، نه Harana
-    "چاپ[\u200c ]?کنندگان": "چاپ کُنَندِگان",   # Chaapkonandegaan
-    "چاپ[\u200c ]?کننده": "چاپ کُنَنده",
+    "چاپ[\u200c ]?کنندگان": "Chaapkonandegaan",   # آوانویسی لاتین به خواست سردبیر
+    "چاپ[\u200c ]?کننده": "Chaapkonande",
+    "ناوگان(?= سایه)": "ناوگانِ",
     "سپاه پاسداران(?! انقلاب)": "سپاه پاسداران انقلاب اسلامی",
     "(?:نهاد|سازمان)[\u200c ]?های حقوق[\u200c ]?بشری": "سازمان‌های مدافع حقوق بشر",
     "گروه[\u200c ]?های حقوق[\u200c ]?بشری": "گروه‌های مدافع حقوق بشر",
@@ -92,11 +93,11 @@ def spoken_time(stamp):
     m = re.search(r"ساعت\s*(\d+)(?::(\d+))?.*?،\s*(\S+)\s+(\d+)\s+(" + _MONTHS + r")\s+سال\s+(\d+)", t)
     if not m: return t
     h, mi, wd, day, mon, yr = m.groups()
-    h = int(h)
-    if h == 0:        hp = "نیمه‌شبِ ایران"
-    elif h < 12:      hp = f"{words(h)} بامدادِ ایران"
-    else:             hp = f"ساعت {words(h)} ایران"
-    if mi and int(mi): hp = hp.replace(words(h), f"{words(h)} و {words(int(mi))} دقیقه", 1)
+    h, mi = int(h), int(mi or 0)
+    if h == 0 and not mi: hp = "ساعت، نیمه‌شبِ ایران"
+    else:
+        hw = words(h) + (f" و {words(mi)} دقیقه" if mi else "")
+        hp = f"ساعت، {hw} بامدادِ ایران" if h < 12 else f"ساعت، {hw}ِ ایران"
     return f"{hp}، {wd} {ordinal(int(day))}ِ {mon}ماه سال {yr}"
 
 
