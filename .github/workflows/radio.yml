@@ -13,7 +13,7 @@ concurrency:
 jobs:
   broadcast:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     environment:
       name: github-pages
     steps:
@@ -21,6 +21,7 @@ jobs:
       - name: ffmpeg
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: پخش در تلگرام
+        id: radio
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -44,3 +45,33 @@ jobs:
         if: always()
         continue-on-error: true
         uses: actions/deploy-pages@v4
+      - name: ابزار ویدیو
+        if: steps.radio.outcome == 'success'
+        run: |
+          sudo apt-get install -y -qq libraqm0 libfribidi0 libharfbuzz0b >/dev/null
+          pip install -q --break-system-packages pillow
+          mkdir -p assets/fonts
+          for w in Black Bold Medium; do
+            curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-$w.ttf || curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@master/fonts/ttf/Vazirmatn-$w.ttf || true
+          done
+          python3 -c "from PIL import features; print('raqm', features.check('raqm'))"
+      - name: پخش در شبکه‌های اجتماعی
+        if: steps.radio.outcome == 'success'
+        env:
+          META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+        run: python3 social.py
+      - uses: actions/upload-artifact@v4
+        if: steps.radio.outcome == 'success'
+        with:
+          name: irana-video
+          path: _social/irana.mp4
+          retention-days: 3
