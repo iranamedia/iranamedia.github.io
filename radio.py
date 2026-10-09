@@ -93,23 +93,39 @@ def chunks(parts):
     return out
 
 
+# نزدیک‌ترین آوا به صدای اصلی گوینده: شباهت بیشینه، پایداری میانه، بی‌سبک‌سازی.
+SIMILARITY = float(os.environ.get("VOICE_SIMILARITY", "1.0"))
+STABILITY = float(os.environ.get("VOICE_STABILITY", "0.5"))
+
+
+def settings_for(model):
+    if model == "eleven_v3":          # v3 فقط پایداری 0، 0.5 یا 1 را می‌پذیرد
+        return {"stability": min((0.0, 0.5, 1.0), key=lambda v: abs(v - STABILITY))}
+    return {"stability": STABILITY, "similarity_boost": SIMILARITY, "style": 0.0, "use_speaker_boost": True}
+
+
 def tts(text, path):
     text = speakable(text)
     last = None
     for model in MODELS:
-        req = urllib.request.Request(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=mp3_44100_128",
-            data=json.dumps({"text": text, "model_id": model}).encode(),
-            headers={"xi-api-key": API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"})
-        for attempt in range(3):
-            try:
-                with urllib.request.urlopen(req, timeout=180) as r, open(path, "wb") as f:
-                    f.write(r.read())
-                return model
-            except urllib.error.HTTPError as e:
-                last = f"{model}: {e.code} {e.read()[:300]!r}"
-                if e.code in (400, 422): break          # این مدل این متن را نمی‌پذیرد؛ مدل بعدی
-                time.sleep(5 * (attempt + 1))
+        for vs in (settings_for(model), None):   # اگر تنظیم‌ها پذیرفته نشد، بی آن‌ها
+            body = {"text": text, "model_id": model}
+            if vs: body["voice_settings"] = vs
+            req = urllib.request.Request(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=mp3_44100_128",
+                data=json.dumps(body).encode(),
+                headers={"xi-api-key": API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg"})
+            bad = False
+            for attempt in range(3):
+                try:
+                    with urllib.request.urlopen(req, timeout=180) as r, open(path, "wb") as f:
+                        f.write(r.read())
+                    return model
+                except urllib.error.HTTPError as e:
+                    last = f"{model}: {e.code} {e.read()[:300]!r}"
+                    if e.code in (400, 422): bad = True; break
+                    time.sleep(5 * (attempt + 1))
+            if not bad: break
     fail(f"ElevenLabs failed: {last}")
 
 
