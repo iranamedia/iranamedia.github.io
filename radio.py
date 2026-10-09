@@ -54,9 +54,17 @@ def ordinal(n):
     return w + "م"
 
 
+# نام‌هایی که گوینده باید به شیوه‌ی درست بخواند (نوشتار آوایی، فقط برای صدا)
+SAY = {
+    "هرانا": "هْرانا",   # Hrana، نه Harana
+}
+
+
 def speakable(text):
     """شماره‌ها را برای گوینده به واژه برمی‌گرداند؛ روز ماه به‌صورت ترتیبی (پانزدهم مهر)."""
     t = text.translate(_DIGITS)
+    for k, v in SAY.items():
+        t = re.sub(r"(?<![\w\u200c])" + k + r"(?![\w\u200c])", v, t)
     t = re.sub(r"(?<=\d)[٬,](?=\d{3})", "", t)
     t = re.sub(r"(\d+)\s+(" + _MONTHS + r")", lambda m: ordinal(int(m.group(1))) + " " + m.group(2), t)
     t = re.sub(r"(\d+)[.٫/](\d+)", lambda m: words(int(m.group(1))) + " ممیز " + words(int(m.group(2))), t)
