@@ -15,14 +15,10 @@ MODELS = [m for m in os.environ.get("TTS_MODELS", "eleven_v3,eleven_multilingual
 
 # متن آگهی: هر سطر جداگانه خوانده می‌شود؛ عدد پس از آن، درنگ پس از سطر (ثانیه) است.
 SCRIPT = [
-    ("رسانه ایرانا.", 0.9),
-    ("تازه‌ترین رویدادهای ایران.", 0.6),
-    ("شبانروزی، سر هر ساعت کشور.", 1.3),
-    ("از خیابان‌های ایران تا پایتخت‌های جهان، از ایستادگی مردم تا گام‌های آزادی‌خواهان، "
-     "و سخنان شاهزاده رضا پهلوی، شهریار ایران.", 0.9),
-    ("هر ساعت، با صدای ایران، در راه رهایی و آزادی.", 1.2),
-    ("رادیو ایرانا را در تلگرام بشنوید، و اپ ایرانا را بر گوشی خود بنشانید.", 1.4),
-    ("رسانه ایرانا. تازه‌ترین رویدادهای ایران.", 0.0),
+    ("رسانه ایرانا.", 1.0),
+    ("تازه‌ترین رویدادهای ایران.", 0.8),
+    ("شبانروزی، سر هر ساعت.", 1.4),
+    ("ایرانا همه جا با شما، با تازه‌ترین رویدادها.", 0.0),
 ]
 INTRO = 3.2      # آهنگ پیش از نخستین واژه
 OUTRO = 4.5      # آهنگ پس از واپسین واژه
@@ -242,7 +238,7 @@ def promo_card(path):
     d.line([(160, y), (W // 2 - 30, y)], fill=social.GOLD, width=2); d.line([(W // 2 + 30, y), (W - 160, y)], fill=social.GOLD, width=2)
     d.polygon([(W // 2, y - 14), (W // 2 + 14, y), (W // 2, y + 14), (W // 2 - 14, y)], fill=social.GOLD); y += 70
     d.text((W // 2, y), "تازه‌ترین رویدادهای ایران", font=social.font("Bold", 66), fill=social.IVORY, **kw); y += 110
-    d.text((W // 2, y), "شبانروزی سر هر ساعت کشور", font=social.font("Medium", 50), fill=social.MIST, **kw)
+    d.text((W // 2, y), "شبانروزی سر هر ساعت", font=social.font("Medium", 50), fill=social.MIST, **kw)
     x, wy, w, h = social.WAVE
     d.rounded_rectangle([x - 20, wy - 20, x + w + 20, wy + h + 20], 28, fill=social.NIGHT + (150,), outline=social.GOLD + (60,), width=2)
     d.text((W // 2, H - 120), f"{social.CHANNEL}   ·   {social.APP}", font=social.font("Medium", 34), fill=social.MIST, anchor="ma")
