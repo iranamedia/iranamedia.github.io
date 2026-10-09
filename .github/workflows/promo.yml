@@ -6,7 +6,7 @@ on:
         description: "نام:شناسه‌ی آوا، با ویرگول جدا"
         default: "sarah:EXAVITQu4vr4xnSDxMaL,charlotte:XB0fDUnXU5powFXDhCwa,lily:pFZP5JQG7iQjIQuC4Bku"
 permissions:
-  contents: read
+  contents: write
 jobs:
   promo:
     runs-on: ubuntu-latest
@@ -32,3 +32,9 @@ jobs:
           name: irana-promo
           path: _promo/
           retention-days: 14
+      - name: نگه‌داری در شاخه‌ی promo-out
+        run: |
+          cd _promo
+          git init -q -b promo-out && git add -A
+          git -c user.name="Irana" -c user.email="irana@users.noreply.github.com" commit -qm "آگهی ایرانا"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" promo-out
