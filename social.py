@@ -156,8 +156,8 @@ def video(cardpng, audio, out):
         "ffmpeg", "-y", "-loglevel", "error",
         "-loop", "1", "-framerate", "24", "-i", cardpng, "-i", audio,
         "-filter_complex",
-        f"[1:a]aformat=channel_layouts=mono,showwaves=s={w}x{h}:mode=cline:rate=24:scale=sqrt:colors=0xE0B452,format=rgba[wv];"
-        f"[0:v][wv]overlay={x}:{y}:shortest=1,format=yuv420p[v]",
+        f"[1:a]aformat=channel_layouts=mono,showwaves=s={w}x{h}:mode=cline:rate=24:scale=sqrt:colors=#e0b452ff:draw=full,format=rgba[wv];"
+        f"[0:v][wv]overlay={x}:{y}:shortest=1:format=rgb,format=yuv420p[v]",
         "-map", "[v]", "-map", "1:a",
         "-c:v", "libx264", "-preset", "veryfast", "-tune", "stillimage", "-crf", "30", "-r", "24", "-g", "48",
         "-profile:v", "high", "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
