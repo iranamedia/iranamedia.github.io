@@ -225,6 +225,9 @@ def main(src="bulletin/latest.json", dry=False):
         for n, c in enumerate(parts):
             print("tts", n, len(c), tts(c, P(f"b{n:02d}.mp3")))
             norm(P(f"b{n:02d}.mp3"), P(f"10_{n:02d}.wav")); seq.append(P(f"10_{n:02d}.wav"))
+        promo = os.path.join(ASSETS, "promo.mp3")      # آگهی ایرانا در پایان هر بخش خبری
+        if os.path.exists(promo):
+            norm(promo, P("90_promo.wav")); seq.append(P("90_promo.wav"))
         out = P("irana.mp3"); join(seq, out)
         if os.environ.get("SAVE_DIR"):                  # برای اپ ایرانا
             os.makedirs(os.environ["SAVE_DIR"], exist_ok=True)

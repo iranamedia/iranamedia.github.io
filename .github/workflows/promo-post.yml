@@ -1,0 +1,26 @@
+name: پخش آگهی در تلگرام
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: فرستادن ویدیوی آگهی
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -sS -f -o r.json \
+            -F chat_id=@IranaMediaNews \
+            -F video=@assets/promo.mp4 \
+            -F width=1080 -F height=1920 -F supports_streaming=true \
+            -F caption="رسانه ایرانا
+          تازه‌ترین رویدادهای ایران
+          شبانروزی، سر هر ساعت
+
+          🔊 t.me/IranaMediaNews
+          📱 iranamedia.github.io" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo" || { echo "::error::Telegram sendVideo failed: $(cat r.json 2>/dev/null)"; exit 1; }
+          python3 -c "import json;print(json.load(open('r.json'))['ok'])"
