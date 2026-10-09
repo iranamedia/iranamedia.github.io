@@ -12,7 +12,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
-          curl -sS -f -o r.json \
+          curl -sS -o r.json \
             -F chat_id=@IranaMediaNews \
             -F video=@assets/promo.mp4 \
             -F width=1080 -F height=1920 -F supports_streaming=true \
@@ -22,5 +22,5 @@ jobs:
 
           🔊 t.me/IranaMediaNews
           📱 iranamedia.github.io" \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo" || { echo "::error::Telegram sendVideo failed: $(cat r.json 2>/dev/null)"; exit 1; }
-          python3 -c "import json;print(json.load(open('r.json'))['ok'])"
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVideo" 
+          python3 -c "import json,sys;r=json.load(open('r.json'));print(r.get('ok'));r.get('ok') or print('::error::'+json.dumps(r,ensure_ascii=False)) or sys.exit(1)"
