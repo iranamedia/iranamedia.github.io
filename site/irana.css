@@ -1,5 +1,5 @@
 /* Irana visual identity — shared by the claude.ai page and the web app.
-   Layout: night-lapis ground with a faint gold girih lattice; Nastaliq masthead; gold-ruled single column of reports. */
+   Layout: night-lapis ground with a faint gold girih lattice; modern Vazirmatn masthead; gold-ruled single column of reports. */
 :root {
   --night: #0a1530;
   --lapis: #12245a;
@@ -11,7 +11,7 @@
   --turq: #46b8ae;
   --live: #e2483d;
   --line: rgba(224, 180, 82, .28);
-  --font-crown: "Noto Nastaliq Urdu", "Vazirmatn", serif;
+  --font-crown: "Vazirmatn", Tahoma, sans-serif;
   --font-roman: "Cinzel", "Times New Roman", serif;
   --font-body: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
   color-scheme: dark;
@@ -33,10 +33,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-
 
 /* Masthead */
 header.crown { padding-block: 40px 8px; display: grid; justify-items: center; gap: 6px; text-align: center; }
-.crown .seal { width: 92px; height: 92px; border-radius: 50%; object-fit: cover;
-  box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold), 0 10px 40px rgba(224,180,82,.25); }
-.crown h1 { margin: 10px 0 0; font-family: var(--font-crown); font-weight: 700; font-size: clamp(2.4rem, 9vw, 4.2rem);
-  line-height: 2.1; color: var(--gold);
+.crown .seal { width: 132px; height: 132px; border-radius: 28px; object-fit: cover;
+  box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold), 0 14px 50px rgba(0,229,238,.22), 0 10px 40px rgba(224,180,82,.2); }
+.crown h1 { margin: 14px 0 0; font-family: var(--font-crown); font-weight: 900; font-size: clamp(2.6rem, 10vw, 4.6rem);
+  line-height: 1.35; letter-spacing: -.01em; color: var(--gold);
   background: linear-gradient(180deg, #f7dc93 0%, var(--gold) 45%, var(--gold-deep) 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
   text-shadow: 0 2px 24px rgba(224,180,82,.18); }
