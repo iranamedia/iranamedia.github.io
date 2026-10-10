@@ -101,9 +101,17 @@ def spoken_time(stamp):
     return f"{hp}، {wd} {ordinal(int(day))}ِ {mon}ماه سال {yr}"
 
 
+def pause_after_subject(title):
+    """تیتر: پس از گوینده/منبع (نخستین «،» یا «:» در آغاز تیتر) درنگ؛ «شهریار ایران ... کشورهای جهان کنار مردم ایران ایستاده‌اند»."""
+    m = re.search(r"\s*[،:]\s*", title)
+    if m and m.start() <= 45:
+        return title[:m.start()] + " ... " + title[m.end():]
+    return title
+
+
 def opening(b):
     """سرآغاز: نام رسانه و ساعت، سپس سه تیتر نخست یکراست پشت هم؛ روی زیرآهنگ خوانده می‌شود."""
-    heads = [it["title"].rstrip(".") for it in b["items"][:HEADLINES]]
+    heads = [pause_after_subject(it["title"].rstrip(".")) for it in b["items"][:HEADLINES]]
     return f"اینجا رسانه ایرانا است. {spoken_time(b['stamp'])}.\n\n" + ".\n\n".join(heads) + "."
 
 
