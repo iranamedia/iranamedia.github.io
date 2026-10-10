@@ -39,7 +39,7 @@ else if(navigator.clipboard){navigator.clipboard.writeText(d.url);b.textContent=
 def main(root):
     cfg = json.load(open("support.json", encoding="utf-8"))
     b = block(cfg)
-    for name in ("index.html", "news.html"):
+    for name in ("index.html", "news.html", "app.html"):
         p = Path(root) / name
         if not p.exists():
             continue
