@@ -11,6 +11,10 @@
     {
       "label": "بیت‌کوین (Bitcoin)",
       "value": "3JJdq1r6Rtrcc3c4AwXfxmduRjPUqd6X1Q"
+    },
+    {
+      "label": "اتریوم (Ethereum، شبکه‌ی ERC-20)",
+      "value": "0x7df808831A0Fce7EdC3e4B9360309d026BB4ef9B"
     }
   ]
 }
