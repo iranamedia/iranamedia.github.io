@@ -106,9 +106,25 @@ def opening(b):
     return f"اینجا رسانه ایرانا است. {spoken_time(b['stamp'])}.\n\n" + ".\n\n".join(heads) + "."
 
 
+FULL = int(os.environ.get("RADIO_FULL", "3"))          # شمار خبرهای نخست که کامل خوانده می‌شوند
+BRIEF = int(os.environ.get("RADIO_BRIEF", "300"))      # بیشینه‌ی نویسه‌ی چکیده‌ی هر خبر دیگر
+
+
+def brief(body):
+    """چکیده‌ی خبر: نخستین جمله‌ی کامل (که چه‌کسی، چه، کجا را دارد)؛ در صورت بلندی، تا آخرین ویرگول پیش از حد."""
+    body = " ".join(body.split())
+    m = re.search(r"[.؟!]", body)
+    first = body[: m.end()] if m else body
+    if len(first) <= BRIEF:
+        return first
+    cut = first[:BRIEF]
+    k = max(cut.rfind("،"), cut.rfind(" و "))
+    return (cut[:k] if k > 80 else cut.rsplit(" ", 1)[0]).rstrip("،, ") + "."
+
+
 def script(b):
-    """متن گفتاری خبرها، پس از سرآغاز."""
-    parts = [it["body"] for it in b["items"]]          # بی‌تیتر: تیترها در سرآغاز آمده‌اند
+    """متن گفتاری خبرها، پس از سرآغاز: سه خبر نخست کامل، بقیه چکیده (برای صرفه‌جویی در اعتبار گفتار)."""
+    parts = [it["body"] if i < FULL else brief(it["body"]) for i, it in enumerate(b["items"])]  # بی‌تیتر
     parts.append("رسانه ایرانا؛ تازه‌ترین رویدادها را سر ساعت آینده بشنوید.")
     return parts
 
