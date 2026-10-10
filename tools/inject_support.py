@@ -19,7 +19,7 @@ color:var(--gold,#e0b452);background:transparent;text-decoration:none;font:inher
 def block(cfg):
     e = html.escape
     out = [MARK, CSS, '<section id="support">', f"<h3>{e(cfg['title'])}</h3>", f"<p>{e(cfg['intro'])}</p>"]
-    out.append('<p><button class="b" id="supShare" type="button">همرسانی این صفحه</button>')
+    out.append('<p><button class="b" id="supShare" type="button">همرسانی این رسانه</button>')
     for l in cfg.get("links", []):
         out.append(f'<a class="b" href="{e(l["url"])}" target="_blank" rel="noopener">{e(l["label"])}</a>')
     out.append("</p>")
