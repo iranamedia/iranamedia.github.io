@@ -2,7 +2,15 @@
   "title": "پشتیبانی از رسانه ایرانا",
   "intro": "ایرانا هر ساعت تازه‌ترین رویدادهای ایران را می‌آورد. اگر این کار را ارزشمند می‌دانید، با هر یک از راه‌های زیر یاری کنید.",
   "links": [
-    {"label": "ایستگاه رسانه ایرانا", "url": "https://t.me/IranaMediaNews"}
+    {
+      "label": "ایستگاه رسانه ایرانا",
+      "url": "https://t.me/IranaMediaNews"
+    }
   ],
-  "donations": []
+  "donations": [
+    {
+      "label": "بیت‌کوین (Bitcoin)",
+      "value": "3JJdq1r6Rtrcc3c4AwXfxmduRjPUqd6X1Q"
+    }
+  ]
 }
