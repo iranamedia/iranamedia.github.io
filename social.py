@@ -30,7 +30,9 @@ TAGS = "#ایران #رسانه_ایرانا #آزادی_ایران"
 W, H = 1080, 1920
 NIGHT, LAPIS, LAPIS2 = (10, 21, 48), (18, 36, 90), (26, 49, 114)
 GOLD, GOLD_DEEP, IVORY, MIST = (224, 180, 82), (169, 125, 34), (245, 236, 214), (188, 198, 223)
-WAVE = (110, 1570, 860, 170)          # x, y, پهنا، بلندی موج صدا
+WAVE = (110, 1570, 860, 170)          # x, y, پهنا، بلندی موج صدا (عمودی)
+WIDE = (1920, 1080)                   # ویدیوی افقی برای یوتیوب: همه‌ی پنجره را می‌پوشاند
+WAVE_W = (260, 905, 1400, 100)        # موج صدا در ویدیوی افقی
 
 SECRETS = [os.environ.get(k, "") for k in ("META_PAGE_TOKEN", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN",
                                             "X_API_SECRET", "X_ACCESS_SECRET", "X_ACCESS_TOKEN")]
@@ -69,7 +71,7 @@ def wrap(d, text, f, width):
     return lines
 
 
-def background():
+def background(W=W, H=H):
     img = Image.new("RGB", (W, H), NIGHT)
     px = img.load()
     cx, cy = W / 2, -H * 0.08
@@ -96,7 +98,6 @@ def background():
 def card(b, path):
     img = background()
     d = ImageDraw.Draw(img, "RGBA")
-    R = W - 90
     # نشان
     logo = Image.open(LOGO).convert("RGB")
     logo = ImageOps.fit(logo, (300, 300))
@@ -126,22 +127,24 @@ def card(b, path):
     d.ellipse([px1 - 40, y + 33, px1 - 22, y + 51], fill=(226, 72, 61))
     d.text(((px0 + px1 - 40) / 2 + 4, y + 42), stamp, font=fs, fill=GOLD, anchor="mm", direction="rtl", language="fa")
     y += 140
-    # تیترها
-    rtl(d, R, y, "تیترهای مهم", font("Black", 40), GOLD)
+    # تیترها (میانه‌چین، با حاشیه‌ی برابر دو سو)
+    d.text((W // 2, y), "تیترهای مهم", font=font("Black", 40), fill=GOLD, anchor="ma", direction="rtl", language="fa")
     y += 80
     limit = WAVE[1] - 60
     for size in (52, 48, 44, 40, 36):             # بزرگ‌ترین اندازه‌ای که هر سه تیتر کامل جا شوند
         fh, lh = font("Bold", size), int(size * 1.55)
-        blocks = [wrap(d, it["title"], fh, R - 160) for it in b["items"][:3]]
-        if y + sum(len(bl) * lh + 34 for bl in blocks) <= limit: break
-    for bl in blocks:
+        blocks = [wrap(d, it["title"], fh, W - 200) for it in b["items"][:3]]
+        if y + sum(len(bl) * lh + 50 for bl in blocks) <= limit: break
+    for n, bl in enumerate(blocks):
         if y + lh > limit: break
-        d.polygon([(R, y + lh // 2 - 8), (R - 12, y + lh // 2 - 20), (R - 24, y + lh // 2 - 8), (R - 12, y + lh // 2 + 4)], fill=GOLD)
         for ln in bl:
             if y + lh > limit: break
-            rtl(d, R - 44, y, ln, fh, IVORY)
+            d.text((W // 2, y), ln, font=fh, fill=IVORY, anchor="ma", direction="rtl", language="fa")
             y += lh
-        y += 34
+        if n < len(blocks) - 1:
+            cy = y + 20
+            d.polygon([(W // 2, cy - 9), (W // 2 + 9, cy), (W // 2, cy + 9), (W // 2 - 9, cy)], fill=GOLD)
+        y += 50
     # پایین
     d.rounded_rectangle([WAVE[0] - 20, WAVE[1] - 20, WAVE[0] + WAVE[2] + 20, WAVE[1] + WAVE[3] + 20], 28,
                         fill=NIGHT + (150,), outline=GOLD + (60,), width=2)
@@ -150,8 +153,50 @@ def card(b, path):
     return path
 
 
-def video(cardpng, audio, out):
-    x, y, w, h = WAVE
+def card_wide(b, path):
+    """کارت افقی ۱۹۲۰×۱۰۸۰: همه‌ی تصویر پوشیده و نوشته‌ها میانه‌چین."""
+    w, h = WIDE
+    img = background(w, h)
+    d = ImageDraw.Draw(img, "RGBA")
+    ls = 190
+    logo = ImageOps.fit(Image.open(LOGO).convert("RGB"), (ls, ls))
+    mask = Image.new("L", (ls, ls), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, ls - 1, ls - 1], 46, fill=255)
+    lx, ly = (w - ls) // 2, 36
+    d.rounded_rectangle([lx - 10, ly - 10, lx + ls + 9, ly + ls + 9], 54, outline=GOLD, width=4)
+    img.paste(logo, (lx, ly), mask)
+    y = ly + ls + 22
+    d.text((w // 2, y), "رسانه ایرانا", font=font("Black", 92), fill=GOLD, anchor="ma", direction="rtl", language="fa")
+    y += 130
+    fs = font("Bold", 38)
+    stamp = b["stamp"]
+    sw = d.textlength(stamp, font=fs, direction="rtl", language="fa")
+    px0, px1 = (w - sw) / 2 - 56, (w + sw) / 2 + 36
+    d.rounded_rectangle([px0, y, px1, y + 66], 33, fill=NIGHT + (200,), outline=GOLD + (120,), width=2)
+    d.ellipse([px1 - 38, y + 24, px1 - 22, y + 40], fill=(226, 72, 61))
+    d.text(((px0 + px1 - 40) / 2 + 4, y + 34), stamp, font=fs, fill=GOLD, anchor="mm", direction="rtl", language="fa")
+    y += 66 + 26
+    limit = WAVE_W[1] - 28
+    for size in (50, 46, 42, 38, 34):
+        fh, lh = font("Bold", size), int(size * 1.5)
+        blocks = [wrap(d, it["title"], fh, w - 320) for it in b["items"][:3]]
+        if y + sum(len(bl) * lh + 28 for bl in blocks) <= limit: break
+    for n, bl in enumerate(blocks):
+        if y + lh > limit: break
+        for ln in bl:
+            if y + lh > limit: break
+            d.text((w // 2, y), ln, font=fh, fill=IVORY, anchor="ma", direction="rtl", language="fa")
+            y += lh
+        y += 28
+    x0, y0, ww, hh = WAVE_W
+    d.rounded_rectangle([x0 - 20, y0 - 14, x0 + ww + 20, y0 + hh + 14], 26, fill=NIGHT + (150,), outline=GOLD + (60,), width=2)
+    d.text((w // 2, h - 56), f"{CHANNEL}   ·   {APP}", font=font("Medium", 28), fill=MIST, anchor="ma")
+    img.save(path)
+    return path
+
+
+def video(cardpng, audio, out, wave=WAVE):
+    x, y, w, h = wave
     subprocess.run([
         "ffmpeg", "-y", "-loglevel", "error",
         "-loop", "1", "-framerate", "24", "-i", cardpng, "-i", audio,
@@ -339,15 +384,17 @@ def main():
     b = json.load(open(BULLETIN, encoding="utf-8"))
     os.makedirs(OUT, exist_ok=True)
     png = card(b, os.path.join(OUT, "card.png"))
-    if "--card-only" in sys.argv: print(png); return
+    wide_png = card_wide(b, os.path.join(OUT, "card-wide.png"))
+    if "--card-only" in sys.argv: print(png, wide_png); return
     mp4 = video(png, AUDIO, os.path.join(OUT, "irana.mp4"))
+    mp4w = video(wide_png, AUDIO, os.path.join(OUT, "irana-wide.mp4"), WAVE_W)   # یوتیوب: افقی، تمام‌صفحه
     clip = os.path.join(OUT, "irana-clip.mp4")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-t", "139", "-c", "copy", clip], check=True)
     print("video", os.path.getsize(mp4) // 1024, "KB")
     if "--video-only" in sys.argv: return
     failed = []
     for name, fn in (("Facebook", lambda: facebook(b, mp4)), ("Instagram", lambda: instagram(b, mp4)),
-                     ("YouTube", lambda: youtube(b, mp4)), ("X", lambda: x_post(b, mp4, clip))):
+                     ("YouTube", lambda: youtube(b, mp4w)), ("X", lambda: x_post(b, mp4, clip))):
         try:
             print(f"{name}: {fn()}", flush=True)
         except Exception as e:

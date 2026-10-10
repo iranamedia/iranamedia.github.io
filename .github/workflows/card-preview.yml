@@ -1,0 +1,27 @@
+name: پیش‌نمایش کارت ویدیو
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: ابزارها
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libraqm0 libfribidi0 libharfbuzz0b >/dev/null
+          pip install -q --break-system-packages pillow
+          mkdir -p assets/fonts
+          for w in Black Bold Medium; do
+            curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-$w.ttf || curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@master/fonts/ttf/Vazirmatn-$w.ttf || true
+          done
+      - name: ساخت کارت‌ها
+        run: python3 social.py --card-only
+      - name: نگه‌داری در شاخه‌ی card-out
+        run: |
+          cd _social
+          git init -q -b card-out && git add -A
+          git -c user.name="Irana" -c user.email="irana@users.noreply.github.com" commit -qm "کارت‌ها"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" card-out
