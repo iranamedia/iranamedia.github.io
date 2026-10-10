@@ -32,7 +32,7 @@ NIGHT, LAPIS, LAPIS2 = (10, 21, 48), (18, 36, 90), (26, 49, 114)
 GOLD, GOLD_DEEP, IVORY, MIST = (224, 180, 82), (169, 125, 34), (245, 236, 214), (188, 198, 223)
 WAVE = (110, 1570, 860, 170)          # x, y, پهنا، بلندی موج صدا (عمودی)
 WIDE = (1920, 1080)                   # ویدیوی افقی برای یوتیوب: همه‌ی پنجره را می‌پوشاند
-WAVE_W = (260, 905, 1400, 100)        # موج صدا در ویدیوی افقی
+WAVE_W = (260, 892, 1400, 96)         # موج صدا در ویدیوی افقی
 
 SECRETS = [os.environ.get(k, "") for k in ("META_PAGE_TOKEN", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN",
                                             "X_API_SECRET", "X_ACCESS_SECRET", "X_ACCESS_TOKEN")]
@@ -177,7 +177,7 @@ def card_wide(b, path):
     d.text(((px0 + px1 - 40) / 2 + 4, y + 34), stamp, font=fs, fill=GOLD, anchor="mm", direction="rtl", language="fa")
     y += 66 + 26
     limit = WAVE_W[1] - 28
-    for size in (50, 46, 42, 38, 34):
+    for size in (60, 56, 52, 48, 44, 40, 36):
         fh, lh = font("Bold", size), int(size * 1.5)
         blocks = [wrap(d, it["title"], fh, w - 320) for it in b["items"][:3]]
         if y + sum(len(bl) * lh + 28 for bl in blocks) <= limit: break
@@ -190,7 +190,7 @@ def card_wide(b, path):
         y += 28
     x0, y0, ww, hh = WAVE_W
     d.rounded_rectangle([x0 - 20, y0 - 14, x0 + ww + 20, y0 + hh + 14], 26, fill=NIGHT + (150,), outline=GOLD + (60,), width=2)
-    d.text((w // 2, h - 56), f"{CHANNEL}   ·   {APP}", font=font("Medium", 28), fill=MIST, anchor="ma")
+    d.text((w // 2, h - 82), f"{CHANNEL}   ·   {APP}", font=font("Medium", 28), fill=MIST, anchor="ma")
     img.save(path)
     return path
 
