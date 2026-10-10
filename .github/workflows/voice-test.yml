@@ -1,0 +1,34 @@
+name: آزمون آوا
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: ساخت نمونه‌ها با مدل‌های گوناگون (همان متن، همان آوا)
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          mkdir -p _vt
+          python3 - <<'PY'
+          import json
+          b = json.load(open("bulletin/latest.json"))
+          open("_vt/text.txt", "w", encoding="utf-8").write(b["items"][2]["body"])
+          PY
+          for m in eleven_v3 eleven_multilingual_v2 eleven_flash_v2_5 eleven_turbo_v2_5; do
+            TTS_MODELS=$m python3 -c "
+          import radio
+          print(radio.tts(open('_vt/text.txt',encoding='utf-8').read(), '_vt/$m.mp3'))
+          " || echo "::warning::$m failed"
+          done
+          ls -la _vt
+      - name: نگه‌داری در شاخه‌ی voice-out
+        run: |
+          cd _vt
+          git init -q -b voice-out && git add -A
+          git -c user.name="Irana" -c user.email="irana@users.noreply.github.com" commit -qm "نمونه‌های آوا"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" voice-out
