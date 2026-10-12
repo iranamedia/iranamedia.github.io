@@ -393,12 +393,20 @@ def main():
     print("video", os.path.getsize(mp4) // 1024, "KB")
     if "--video-only" in sys.argv: return
     failed = []
+    import datetime
+    yt_every = int(os.environ.get("YT_EVERY", "2"))     # سقف آپلود روزانه‌ی یوتیوب: هر چند ساعت یک ویدیو
+    yt_turn = datetime.datetime.utcnow().hour % max(yt_every, 1) == 0
     for name, fn in (("Facebook", lambda: facebook(b, mp4)), ("Instagram", lambda: instagram(b, mp4)),
                      ("YouTube", lambda: youtube(b, mp4w)), ("X", lambda: x_post(b, mp4, clip))):
+        if name == "YouTube" and not yt_turn:
+            print("YouTube: skipped (نوبت این ساعت نیست)", flush=True); continue
         try:
             print(f"{name}: {fn()}", flush=True)
         except Exception as e:
             msg = clean(e).replace("\n", " ")[:900]
+            if name == "YouTube" and "uploadLimitExceeded" in msg:
+                print(f"::warning title=YouTube::سقف آپلود روزانه پر است؛ نوبت بعد", flush=True)
+                continue
             print(f"::error title={name}::{msg}", flush=True)
             failed.append(name)
     if failed: sys.exit(1)
