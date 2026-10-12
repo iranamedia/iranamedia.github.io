@@ -56,6 +56,7 @@ def ordinal(n):
 
 # نام‌هایی که گوینده باید به شیوه‌ی درست بخواند (نوشتار آوایی، فقط برای صدا)
 SAY = {
+    "مراجع قضایی جمهوری اسلامی": "قوه قضاییه جمهوری اسلامی",
     "حکم حبس[،,]?(?= ?\\d)": "حکمِ حبسِ",   # «حکمِ حبسِ ۸ سال زندان»، بی درنگ میان آن‌ها
     "هرانا": "هْرانا",   # Hrana، نه Harana
     "چاپ[\u200c]?کنندگان": "چاپ کنندگان",   # دو واژه‌ی جدا: چاپ کنندگان
@@ -68,6 +69,11 @@ SAY = {
     "گروه حقوق[\u200c ]?بشری": "گروه مدافع حقوق بشر",
     "فعال حقوق[\u200c ]?بشری": "کوشنده مدافع حقوق بشر",
 }
+
+
+def plain(t):
+    """کسره‌ی نوشته‌شده در نام‌ها برداشته می‌شود تا گوینده نام را با گام بالا نخواند."""
+    return t.replace("\u0650", "")
 
 
 def speakable(text):
@@ -111,7 +117,7 @@ def pause_after_subject(title):
 
 def opening(b):
     """سرآغاز: نام رسانه و ساعت، سپس سه تیتر نخست یکراست پشت هم؛ روی زیرآهنگ خوانده می‌شود."""
-    heads = [pause_after_subject(it["title"].rstrip(".")) for it in b["items"][:HEADLINES]]
+    heads = [pause_after_subject(plain(it["title"]).rstrip(".")) for it in b["items"][:HEADLINES]]
     return f"اینجا رسانه ایرانا است. {spoken_time(b['stamp'])}.\n\n" + ".\n\n".join(heads) + "."
 
 
@@ -133,7 +139,7 @@ def brief(body):
 
 def script(b):
     """متن گفتاری خبرها، پس از سرآغاز: سه خبر نخست کامل، بقیه چکیده (برای صرفه‌جویی در اعتبار گفتار)."""
-    parts = [it["body"] if i < FULL else brief(it["body"]) for i, it in enumerate(b["items"])]  # بی‌تیتر
+    parts = [plain(it["body"]) if i < FULL else brief(plain(it["body"])) for i, it in enumerate(b["items"])]  # بی‌تیتر
     parts.append("رسانه ایرانا ... تازه‌ترین رویدادهای ایران را سر ساعت آینده بشنوید.")
     return parts
 
