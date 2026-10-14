@@ -128,24 +128,29 @@ def opening(b):
 
 
 FULL = int(os.environ.get("RADIO_FULL", "1"))          # شمار خبرهای نخست که کامل خوانده می‌شوند
-BRIEF = int(os.environ.get("RADIO_BRIEF", "200"))      # بیشینه‌ی نویسه‌ی چکیده‌ی هر خبر دیگر
+BRIEF = int(os.environ.get("RADIO_BRIEF", "320"))      # بیشینه‌ی نویسه‌ی چکیده‌ی هر خبر دیگر
 
 
 def brief(body):
-    """چکیده‌ی خبر: نخستین جمله‌ی کامل (که چه‌کسی، چه، کجا را دارد)؛ در صورت بلندی، تا آخرین ویرگول پیش از حد."""
+    """چکیده‌ی خبر: دو جمله‌ی نخست؛ در صورت بلندی، بریده در مرز جمله یا ویرگول."""
     body = " ".join(body.split())
-    m = re.search(r"[.؟!]", body)
-    first = body[: m.end()] if m else body
+    ends = [m.end() for m in re.finditer(r"[.؟!]", body)]
+    first = body[: ends[1]] if len(ends) >= 2 else body
     if len(first) <= BRIEF:
         return first
+    if ends and ends[0] <= BRIEF:
+        return body[: ends[0]]
     cut = first[:BRIEF]
     k = max(cut.rfind("،"), cut.rfind(" و "))
     return (cut[:k] if k > 80 else cut.rsplit(" ", 1)[0]).rstrip("،, ") + "."
 
 
+ITEMS = int(os.environ.get("RADIO_ITEMS", "5"))        # شمار خبرهای گفتاری در هر بخش
+
+
 def script(b):
     """متن گفتاری خبرها، پس از سرآغاز: سه خبر نخست کامل، بقیه چکیده (برای صرفه‌جویی در اعتبار گفتار)."""
-    parts = [plain(it["body"]) if i < FULL else brief(plain(it["body"])) for i, it in enumerate(b["items"])]  # بی‌تیتر
+    parts = [plain(it["body"]) if i < FULL else brief(plain(it["body"])) for i, it in enumerate(b["items"][:ITEMS])]  # بی‌تیتر
     parts.append("رسانه ایرانا ... تازه‌ترین رویدادهای ایران را سر ساعت آینده بشنوید.")
     return parts
 
