@@ -127,7 +127,7 @@ def opening(b):
     return f"اینجا رسانه ایرانا است. {spoken_time(b['stamp'])}.\n\n" + ".\n\n".join(heads) + "."
 
 
-FULL = int(os.environ.get("RADIO_FULL", "2"))          # شمار خبرهای نخست که کامل خوانده می‌شوند
+FULL = int(os.environ.get("RADIO_FULL", "1"))          # شمار خبرهای نخست که کامل خوانده می‌شوند
 BRIEF = int(os.environ.get("RADIO_BRIEF", "200"))      # بیشینه‌ی نویسه‌ی چکیده‌ی هر خبر دیگر
 
 
@@ -277,7 +277,7 @@ def send(path, cap, stamp):
     if not res.get("ok"): fail(f"Telegram failed: {res}")
 
 
-EVERY = int(os.environ.get("RADIO_EVERY", "3"))        # گفتار (و ویدیو) هر چند ساعت یک‌بار؛ در ساعت‌های دیگر فقط متن
+HOURS = {int(x) for x in os.environ.get("RADIO_HOURS", "4,16").split(",") if x.strip()}   # ساعت‌های UTC گفتار (۸:۳۰ و ۲۰:۳۰ تهران)        # گفتار (و ویدیو) هر چند ساعت یک‌بار؛ در ساعت‌های دیگر فقط متن
 
 
 def send_text(cap):
@@ -314,7 +314,7 @@ def main(src="bulletin/latest.json", dry=False):
         for cs in parts:
             for c in cs: print(len(c), "|", c[:80].replace("\n", " "), "…")
         print(caption(b)); return
-    if EVERY > 1 and datetime.datetime.utcnow().hour % EVERY != 0 and not os.environ.get("FORCE_VOICE"):
+    if HOURS and datetime.datetime.utcnow().hour not in HOURS and not os.environ.get("FORCE_VOICE"):
         if not BOT_TOKEN: fail("missing secret: TELEGRAM_BOT_TOKEN")
         send_text(caption(b)); keep_old_audio(); print("text only (ساعت بی‌گفتار)"); return
     if not API_KEY or not BOT_TOKEN:
