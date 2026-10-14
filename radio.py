@@ -1,5 +1,5 @@
 """رادیو ایرانا: خبرنامه‌ی تازه را با صدای ElevenLabs می‌خواند و به کانال تلگرام می‌فرستد."""
-import json, os, shutil, subprocess, sys, tempfile, time, urllib.request, urllib.error, uuid
+import datetime, json, urllib.parse, os, shutil, subprocess, sys, tempfile, time, urllib.request, urllib.error, uuid
 
 
 def fail(msg):
@@ -127,8 +127,8 @@ def opening(b):
     return f"اینجا رسانه ایرانا است. {spoken_time(b['stamp'])}.\n\n" + ".\n\n".join(heads) + "."
 
 
-FULL = int(os.environ.get("RADIO_FULL", "3"))          # شمار خبرهای نخست که کامل خوانده می‌شوند
-BRIEF = int(os.environ.get("RADIO_BRIEF", "300"))      # بیشینه‌ی نویسه‌ی چکیده‌ی هر خبر دیگر
+FULL = int(os.environ.get("RADIO_FULL", "2"))          # شمار خبرهای نخست که کامل خوانده می‌شوند
+BRIEF = int(os.environ.get("RADIO_BRIEF", "200"))      # بیشینه‌ی نویسه‌ی چکیده‌ی هر خبر دیگر
 
 
 def brief(body):
@@ -277,6 +277,31 @@ def send(path, cap, stamp):
     if not res.get("ok"): fail(f"Telegram failed: {res}")
 
 
+EVERY = int(os.environ.get("RADIO_EVERY", "3"))        # گفتار (و ویدیو) هر چند ساعت یک‌بار؛ در ساعت‌های دیگر فقط متن
+
+
+def send_text(cap):
+    data = urllib.parse.urlencode({"chat_id": CHANNEL, "text": cap, "disable_web_page_preview": "true"}).encode()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=data), timeout=60) as r:
+            res = json.load(r)
+    except urllib.error.HTTPError as e:
+        fail(f"Telegram failed: {e.code} {e.read()[:300]!r}")
+    if not res.get("ok"): fail(f"Telegram failed: {res}")
+
+
+def keep_old_audio():
+    """در ساعت بی‌گفتار، فایل صوتی پیشین اپ را نگه می‌دارد تا پیوندش نشکند."""
+    sd = os.environ.get("SAVE_DIR")
+    if not sd: return
+    os.makedirs(sd, exist_ok=True)
+    open(os.path.join(sd, ".silent"), "w").close()
+    try:
+        urllib.request.urlretrieve("https://iranamedia.github.io/latest.mp3", os.path.join(sd, "latest.mp3"))
+    except Exception as e:
+        print("old audio not kept:", e)
+
+
 def main(src="bulletin/latest.json", dry=False):
     b = json.load(open(src, encoding="utf-8"))
     J = lambda x: x.replace("جمعه", "آدینه")         # رسانه ایرانا «آدینه» می‌گوید، نه «جمعه»
@@ -289,6 +314,9 @@ def main(src="bulletin/latest.json", dry=False):
         for cs in parts:
             for c in cs: print(len(c), "|", c[:80].replace("\n", " "), "…")
         print(caption(b)); return
+    if EVERY > 1 and datetime.datetime.utcnow().hour % EVERY != 0 and not os.environ.get("FORCE_VOICE"):
+        if not BOT_TOKEN: fail("missing secret: TELEGRAM_BOT_TOKEN")
+        send_text(caption(b)); keep_old_audio(); print("text only (ساعت بی‌گفتار)"); return
     if not API_KEY or not BOT_TOKEN:
         fail("missing secret: " + ", ".join(n for n, v in (("ELEVENLABS_API_KEY", API_KEY), ("TELEGRAM_BOT_TOKEN", BOT_TOKEN)) if not v))
     with tempfile.TemporaryDirectory() as d:

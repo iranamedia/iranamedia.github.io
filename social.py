@@ -382,6 +382,8 @@ def x_post(b, mp4, clip):
 
 def main():
     b = json.load(open(BULLETIN, encoding="utf-8"))
+    if os.path.exists(os.path.join(os.path.dirname(AUDIO), ".silent")):
+        print("ساعت بی‌گفتار؛ ویدیو و پست اجتماعی نیست"); return
     os.makedirs(OUT, exist_ok=True)
     png = card(b, os.path.join(OUT, "card.png"))
     wide_png = card_wide(b, os.path.join(OUT, "card-wide.png"))
