@@ -1,7 +1,7 @@
 name: آزمون توکن متا
 on:
   push:
-    paths: [".github/workflows/meta-check.yml"]
+    paths: [".github/workflows/meta-check.yml"]  # v2
   workflow_dispatch:
 jobs:
   check:
@@ -21,7 +21,9 @@ jobs:
               u = f"https://graph.facebook.com/v23.0/{path}?" + urllib.parse.urlencode(q)
               try: return json.load(urllib.request.urlopen(u))
               except urllib.error.HTTPError as e: return {"error": json.loads(e.read())}
-          print("page:", get(page, fields="id,name,instagram_business_account"))
+          pg = get(page, fields="id,name,instagram_business_account")
+          print("::notice title=page::" + json.dumps(pg, ensure_ascii=False))
           d = get("debug_token", input_token=tok).get("data", {})
-          print("type:", d.get("type"), "valid:", d.get("is_valid"), "expires:", d.get("expires_at"), "scopes:", d.get("scopes"))
+          print("::notice title=token::" + json.dumps({k: d.get(k) for k in ("type","is_valid","expires_at","scopes")}))
+          if "error" in pg: sys.exit(1)
           PY
