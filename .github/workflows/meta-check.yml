@@ -1,0 +1,27 @@
+name: آزمون توکن متا
+on:
+  push:
+    paths: [".github/workflows/meta-check.yml"]
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: بررسی دسترسی به صفحه‌ی فیسبوک
+        env:
+          TOK: ${{ secrets.META_PAGE_TOKEN }}
+          PAGE: ${{ secrets.META_PAGE_ID || '150299551406' }}
+        run: |
+          python3 - <<'PY'
+          import os, json, urllib.request, urllib.parse, sys
+          tok, page = os.environ["TOK"], os.environ["PAGE"]
+          if not tok: print("::error::META_PAGE_TOKEN خالی است"); sys.exit(1)
+          def get(path, **q):
+              q["access_token"] = tok
+              u = f"https://graph.facebook.com/v23.0/{path}?" + urllib.parse.urlencode(q)
+              try: return json.load(urllib.request.urlopen(u))
+              except urllib.error.HTTPError as e: return {"error": json.loads(e.read())}
+          print("page:", get(page, fields="id,name,instagram_business_account"))
+          d = get("debug_token", input_token=tok).get("data", {})
+          print("type:", d.get("type"), "valid:", d.get("is_valid"), "expires:", d.get("expires_at"), "scopes:", d.get("scopes"))
+          PY
