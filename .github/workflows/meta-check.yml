@@ -1,7 +1,7 @@
 name: آزمون توکن متا
 on:
   push:
-    paths: [".github/workflows/meta-check.yml"]  # v3
+    paths: [".github/workflows/meta-check.yml"]  # v4
   workflow_dispatch:
 jobs:
   check:
