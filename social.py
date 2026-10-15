@@ -264,9 +264,21 @@ def multipart(fields, files):
 
 # ---------- فیسبوک ----------
 
+_PAGE_TOK = {}
+def page_token(page, tok):
+    """توکن کاربر سیستمی را به توکن خود صفحه تبدیل می‌کند (پست ویدیو توکن صفحه می‌خواهد)."""
+    if page not in _PAGE_TOK:
+        try:
+            _PAGE_TOK[page] = jcall("GET", f"{GRAPH}/{page}?fields=access_token&access_token={tok}").get("access_token") or tok
+        except Exception:
+            _PAGE_TOK[page] = tok
+    return _PAGE_TOK[page]
+
+
 def facebook(b, mp4):
     page, tok = os.environ.get("META_PAGE_ID"), os.environ.get("META_PAGE_TOKEN")
     if not (page and tok): return "skip"
+    tok = page_token(page, tok)
     data, ctype = multipart({"access_token": tok, "title": f"رسانه ایرانا · {b['stamp']}",
                              "description": caption(b)},
                             {"source": ("irana.mp4", open(mp4, "rb").read(), "video/mp4")})
