@@ -403,14 +403,14 @@ def main():
     mp4 = video(png, AUDIO, os.path.join(OUT, "irana.mp4"))
     mp4w = video(wide_png, AUDIO, os.path.join(OUT, "irana-wide.mp4"), WAVE_W)   # یوتیوب: افقی، تمام‌صفحه
     clip = os.path.join(OUT, "irana-clip.mp4")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-t", "139", "-c", "copy", clip], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-t", "90", "-c", "copy", clip], check=True)
     print("video", os.path.getsize(mp4) // 1024, "KB")
     if "--video-only" in sys.argv: return
     failed = []
     import datetime
     yt_every = int(os.environ.get("YT_EVERY", "1"))     # سقف آپلود روزانه‌ی یوتیوب: هر چند ساعت یک ویدیو
     yt_turn = datetime.datetime.utcnow().hour % max(yt_every, 1) == 0
-    for name, fn in (("Facebook", lambda: facebook(b, mp4)), ("Instagram", lambda: instagram(b, mp4)),
+    for name, fn in (("Facebook", lambda: facebook(b, mp4)), ("Instagram", lambda: instagram(b, clip)),
                      ("YouTube", lambda: youtube(b, mp4w)), ("X", lambda: x_post(b, mp4, clip))):
         if name == "YouTube" and not yt_turn:
             print("YouTube: skipped (نوبت این ساعت نیست)", flush=True); continue
