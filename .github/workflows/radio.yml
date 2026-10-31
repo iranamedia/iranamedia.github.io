@@ -62,6 +62,8 @@ jobs:
           META_PAGE_ID: ${{ secrets.META_PAGE_ID || '150299551406' }}
           META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID || '17841441006602757' }}
+          IG_CLIP: "90"
+          YT_EVERY: "6"
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
