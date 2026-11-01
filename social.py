@@ -289,15 +289,35 @@ def facebook(b, mp4):
 
 # ---------- اینستاگرام (ریلز، بارگذاری مستقیم) ----------
 
+def hosted_url(page, tok, mp4):
+    """ویدیو را ناپیدا (published=false) در صفحه‌ی فیسبوک می‌گذارد و نشانی عمومی فایل را برمی‌گرداند."""
+    ptok = page_token(page, tok)
+    data, ctype = multipart({"access_token": ptok, "published": "false", "title": "irana-ig-source"},
+                            {"source": ("irana.mp4", open(mp4, "rb").read(), "video/mp4")})
+    vid = jcall("POST", f"{GRAPH.replace('graph.', 'graph-video.')}/{page}/videos", data=data,
+                headers={"Content-Type": ctype})["id"]
+    for _ in range(40):                               # تا حدود ۷ دقیقه
+        r = jcall("GET", f"{GRAPH}/{vid}", params={"fields": "source,status", "access_token": ptok})
+        if r.get("source"): return r["source"]
+        time.sleep(10)
+    raise RuntimeError("hosted video url not ready")
+
+
 def instagram(b, mp4):
     ig, tok = os.environ.get("IG_USER_ID"), os.environ.get("META_PAGE_TOKEN")
+    page = os.environ.get("META_PAGE_ID")
     if not (ig and tok): return "skip"
-    c = jcall("POST", f"{GRAPH}/{ig}/media", params={
-        "media_type": "REELS", "upload_type": "resumable", "share_to_feed": "true",
-        "caption": caption(b, 2000), "access_token": tok})
-    cid, uri = c["id"], c.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{GRAPH.rsplit('/', 1)[1]}/{c['id']}"
-    data = open(mp4, "rb").read()
-    http("POST", uri, data, {"Authorization": f"OAuth {tok}", "offset": "0", "file_size": str(len(data))})
+    params = {"media_type": "REELS", "share_to_feed": "true", "caption": caption(b, 2000), "access_token": tok}
+    if page:                                          # روش نخست: video_url (پایدارتر از بارگذاری مستقیم)
+        params["video_url"] = hosted_url(page, tok, mp4)
+        c = jcall("POST", f"{GRAPH}/{ig}/media", params=params)
+        cid = c["id"]
+    else:
+        params["upload_type"] = "resumable"
+        c = jcall("POST", f"{GRAPH}/{ig}/media", params=params)
+        cid, uri = c["id"], c.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{GRAPH.rsplit('/', 1)[1]}/{c['id']}"
+        data = open(mp4, "rb").read()
+        http("POST", uri, data, {"Authorization": f"OAuth {tok}", "offset": "0", "file_size": str(len(data))})
     for _ in range(90):                               # تا ۱۵ دقیقه برای پردازش
         s = jcall("GET", f"{GRAPH}/{cid}", params={"fields": "status_code,status", "access_token": tok})
         if s.get("status_code") == "FINISHED": break
