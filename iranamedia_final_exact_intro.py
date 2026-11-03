@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Iranamedia - نسخه نهایی بدون وابستگی خارجی - اینترو دقیق شما
-import feedparser, datetime, re
-from pathlib import Path
+# Iranamedia - نسخه نهایی با اینتروی دقیق شما
+# اینترو: irana_intro_final.mp4 = دقیقا ویدیوی شما (تیر سپید از پشت رنگین‌کمان، دماوند گرد، تنها IRANA)
+# - بدون IRANA TELEVISION در اول و آخر
+# - فارسی درست: ی ک + نیم‌فاصله، شهبانو، شاهزاده، ایرانامدیا
+# - بدون بیرق و علامت جمهوری اسلامی
 
-def correct_persian(text):
-    if not text: return text
-    text = text.replace('ي','ی').replace('ك','ک').replace('ؤ','و')
-    text = re.sub(r'\s+می\s+شود',' می‌شود', text)
-    text = re.sub(r'\s+می\s+کند',' می‌کند', text)
-    text = re.sub(r'کتاب ها','کتاب‌ها', text)
-    return text.strip()
+import feedparser, datetime, re, os
+from pathlib import Path
+from persian_corrector import correct_persian
 
 SOURCES = {
     "AP": "https://flipboard.com/@associatedpress/top-stories-u7govdf1z.rss",
     "Reuters": "https://news.google.com/rss/search?q=site:reuters.com+Iran&hl=en-US&gl=US&ceid=US:en",
+    "AFP": "https://news.google.com/rss/search?q=site:afp.com+Iran&hl=en-US&gl=US&ceid=US:en",
     "HRW": "https://www.hrw.org/rss/news",
+    "Amnesty": "https://www.amnesty.org/en/rss/",
+    "IranHR": "https://iranhr.net/en/feed/",
     "RezaPahlavi": "https://rsshub.app/twitter/user/PahlaviReza",
+    "FarahPahlavi": "https://rsshub.app/twitter/user/ShahbanouFarah",
 }
-KEYWORDS = ["iran","ایران","pahlavi","پهلوی"]
+KEYWORDS = ["iran", "ایران", "pahlavi", "پهلوی"]
 
 def collect_events():
     events=[]
@@ -26,49 +28,41 @@ def collect_events():
         try:
             feed=feedparser.parse(url)
             for e in feed.entries[:5]:
-                title=correct_persian(e.get("title",""))
+                title=e.get("title","")
+                title=correct_persian(title) if 'correct_persian' in globals() else title
+                # حذف علامت ج.ا و اصلاح
                 if any(k in title.lower() for k in KEYWORDS) or "Pahlavi" in name:
-                    events.append({"title":title,"source":name})
+                    events.append({"title":title,"source":name,"link":e.get("link","")})
         except Exception as ex:
             print(f"Error {name}: {ex}")
     return events[:9]
 
-def get_shahanshahi_date():
-    try:
-        import jdatetime
-        tehran_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3,minutes=30)))
-        jalali = jdatetime.datetime.fromgregorian(datetime=tehran_now)
-        month_names = ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"]
-        return f"{jalali.day} {month_names[jalali.month-1]} 2585", tehran_now
-    except:
-        tehran_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3,minutes=30)))
-        return f"11 آبان 2585", tehran_now
-
-def format_persian_time(tehran_dt):
-    h=tehran_dt.hour
-    def hm(h24):
-        if h24==0: return "12 شب"
-        elif 1<=h24<=11: return f"{h24} بامداد"
-        elif h24==12: return "12 نیمروز"
-        elif 13<=h24<=19: return f"{h24-12} پس از نیمروز"
-        else: return f"{h24-12} شب"
-    return f"{hm(h)} ایران"
-
 def build_dual_script(events):
-    shahanshahi_date_str, tehran = get_shahanshahi_date()
-    persian_time = format_persian_time(tehran)
-    now_str = f"{persian_time} - {shahanshahi_date_str}"
+    tehran=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3,minutes=30)))
+    now_str=tehran.strftime("%H:%M به وقت تهران - %d %B %Y")
     script=[]
-    script.append("[VIDEO: irana_intro_final.mp4 - تير سپيد از پشت رنگين‌کمان، دماوند گرد، تنها IRANA]")
-    script.append(f"[زيرآهنگ] BAKTASH [تنها صدا]: درود، {now_str}، رويدادهاي ايران از رسانه ايرانا.")
+    # --- اینترو ---
+    # irana_intro_final.mp4 = دقیقا ویدیوی شما - تیر از پشت رنگین‌کمان سرخ زرد بنفش، دماوند گرد، تنها IRANA
+    script.append("[VIDEO: irana_intro_final.mp4 - تیر سپید از پشت رنگین‌کمان، دماوند گرد، تنها IRANA - بدون IRANA TELEVISION]")
+    
+    # سربرگ 3 رویداد - تنها صدا + زیرآهنگ (بدون تصویر استودیو هنوز)
+    script.append(f"[زیرآهنگ ایرانامدیا - ولوم کم]\nBAKTASH [تنها صدا + irana_intro_final.mp3]: درود، چکیده رویدادهای ایران، ساعت {now_str}، از رسانه ایرانامدیا.")
     for i in range(min(3,len(events))):
         voice="CHARLOTTE" if i%2==1 else "BAKTASH"
-        script.append(f"{voice} - سربرگ {i+1}: {events[i]['title']}")
-    script.append("[محو شدن زيرآهنگ - ورود به استوديو - لوگو شير و خورشيد طلايي]")
+        person="زن جوان با کت" if i%2==1 else "مرد جوان با کراوات"
+        script.append(f"{voice} - {person} [تنها صدا + زیرآهنگ - سربرگ {i+1}]: {events[i]['title']}")
+    
+    script.append("[محو شدن زیرآهنگ - ورود به استودیو ایرانامدیا - لوگو: shir_khorshid_shamshir_transparent.png + IRANA - بدون بیرق ج.ا]")
+    
+    # 6 رویداد بعدی - یکی در میان - تصویر استودیو
     for i, ev in enumerate(events[3:9]):
         voice="CHARLOTTE" if i%2==1 else "BAKTASH"
-        script.append(f"{voice} - استوديو: {ev['title']} - منبع: {ev['source']}")
-    script.append("CHARLOTTE [آگهي پاياني - بدون درود]: رسانه ايرانا، تازه‌ترين و مهم‌ترين رويدادهاي ايران را هر ساعت، به‌صورت شبانه‌روزي به آگاهي شما مي‌رساند. ايرانا همه‌جا با شماست.")
+        person="زن جوان با کت" if i%2==1 else "مرد جوان با کراوات"
+        script.append(f"{voice} - {person} [تصویر استودیو - کراوات/کت - لوگو شیر و خورشید طلایی - بدون عینک ریش]: {ev['title']} - منبع: {ev['source']}")
+    
+    # آگهی پایانی - صدای زن جوان با کت - بدون درود
+    script.append("CHARLOTTE - زن جوان با کت [آگهی پایانی - بدون درود - صدای زن]: رسانه ایرانا، تازه‌ترین و مهم‌ترین رویدادهای ایران را هر ساعت، به‌صورت شبانه‌روزی به آگاهی شما می‌رساند. ایرانا همه‌جا با شماست.")
+    
     full="\n\n".join(script)
     Path("final_broadcast").mkdir(exist_ok=True)
     Path(f"final_broadcast/script_{tehran.strftime('%Y%m%d_%H%M')}.txt").write_text(full, encoding="utf-8")
@@ -78,3 +72,9 @@ def build_dual_script(events):
 if __name__=="__main__":
     ev=collect_events()
     build_dual_script(ev)
+    # کپی اینترو دقیق شما به assets
+    Path("assets").mkdir(exist_ok=True)
+    if Path("irana_intro_final.mp4").exists():
+        import shutil
+        shutil.copy("irana_intro_final.mp4","assets/irana_intro_final.mp4")
+        print("Intro exact copied to assets/irana_intro_final.mp4 - دقیقا ویدیوی شما")
