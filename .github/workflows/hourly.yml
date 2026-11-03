@@ -3,7 +3,10 @@ on:
   schedule:
     - cron: '30 * * * *'
   workflow_dispatch:
-
+  
+permissions:
+  contents: write
+  
 jobs:
   broadcast:
     runs-on: ubuntu-latest
