@@ -1,1 +1,35 @@
+name: Iranamedia Hourly - Exact Intro 2585
+on:
+  schedule:
+    - cron: '30 * * * *'
+  workflow_dispatch:
+jobs:
+  broadcast:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install feedparser jdatetime
+      - name: Verify exact intro
+        run: |
+          ls -lh assets/irana_intro_final.mp4
+          ls -lh assets/irana_lion_gold_transparent.png
+          echo "Intro exact: تير سپيد از پشت رنگين‌کمان سرخ زرد بنفش"
+      - name: Build script 2585
+        run: |
+          python iranamedia_final_exact_intro.py
+          ls -lh final_broadcast/
+          cat final_broadcast/*.txt | head -n 100
+      - name: Commit
+        run: |
+          git config user.name "Iranamedia Bot"
+          git config user.email "bot@iranamedia.github.io"
+          git add final_broadcast/ || true
+          git commit -m "پخش ساعتي 2585 - اينترو دقيق شما - $(date -u)" || true
+          git push || true
 
