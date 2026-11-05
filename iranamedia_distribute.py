@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Iranamedia Distribute - Telegram + FB (both) + IG + YouTube - 2585
-import os, glob, datetime, requests, json, time
+# IRANA Distribute FINAL FIXED - clean caption (no [commands]), real 5min video, honest reporting
+import os, glob, requests, time, sys
 from pathlib import Path
 
 def env_any(*names):
@@ -11,212 +11,200 @@ def env_any(*names):
             return v.strip()
     return None
 
-def get_latest_script():
-    files = sorted(glob.glob("final_broadcast/script_*.txt"), reverse=True)
-    if not files:
-        return None, "درود، رویدادهای ایران از رسانه ایرانا - 11 آبان 2585"
-    txt = Path(files[0]).read_text(encoding="utf-8")[:3000]
-    return files[0], txt
+def get_latest_caption_and_video():
+    # Prefer clean caption (no [تنها صدا] commands) - Claude fix
+    cap_files = sorted(glob.glob("final_broadcast/caption_*.txt") + glob.glob("final_broadcast/caption_latest.txt"), reverse=True)
+    script_files = sorted(glob.glob("final_broadcast/script_*.txt"), reverse=True)
+    caption = ""
+    if cap_files and Path(cap_files[0]).exists():
+        caption = Path(cap_files[0]).read_text(encoding="utf-8")
+    elif script_files:
+        # Fallback clean script
+        raw = Path(script_files[0]).read_text(encoding="utf-8")
+        # Remove stage commands
+        lines = []
+        for line in raw.split("\n"):
+            if line.strip().startswith("["): continue
+            if "گوینده" in line and "[" in line: 
+                # Extract after colon
+                if ":" in line:
+                    line = line.split(":",1)[1]
+            lines.append(line.strip())
+        caption = "\n".join([l for l in lines if l])[:2000]
+    
+    if not caption:
+        caption = "رسانه ایرانا | رویدادهای ایران | ۱۱ آبان ۲۵۸۵"
 
-def get_latest_video():
-    for pattern in ["final_5min.mp4", "final_broadcast/broadcast_*.mp4", "assets/irana_intro_final.mp4", "irana_intro_final.mp4"]:
-        files = sorted(glob.glob(pattern), reverse=True)
-        if files and Path(files[0]).exists() and Path(files[0]).stat().st_size > 1000:
-            return files[0]
-    return None
+    video = None
+    for p in ["final_5min.mp4", "final_broadcast/main_270.mp4"]:
+        if Path(p).exists() and Path(p).stat().st_size > 10000:
+            video = p
+            break
+    return caption, video
 
-def send_telegram(text, video_path=None):
+def send_telegram(caption, video_path):
     token = env_any("TELEGRAM_BOT_TOKEN")
-    chat_id = env_any("TELEGRAM_CHANNEL_ID", "TELEGRAM_CHAT_ID")
-    print(f"[Telegram] token={bool(token)} chat_id={chat_id}")
+    chat_id = env_any("TELEGRAM_CHANNEL_ID")
+    print(f"[Telegram] token={bool(token)} chat={chat_id} video={video_path}")
     if not token or not chat_id:
-        print("Telegram SKIP")
+        print("❌ Telegram SKIP - secrets missing")
         return False
-    caption = text[:800] + "\n\n@IranaMediaNews\nhttps://whatsapp.com/channel/0029Vb9JxR1HgZWcZUxJY03Z\nhttps://iranamedia.github.io"
+    # Telegram caption limit 1024 - clean caption already short
+    final_cap = caption[:900] + "\n\n📡 @IranaMediaNews\n🔗 iranamedia.github.io\n💬 whatsapp.com/channel/0029Vb9JxR1HgZWcZUxJY03Z"
     try:
-        if video_path:
+        if video_path and Path(video_path).exists():
             with open(video_path, "rb") as f:
                 r = requests.post(f"https://api.telegram.org/bot{token}/sendVideo",
-                                   data={"chat_id": chat_id, "caption": caption},
-                                   files={"video": f}, timeout=120)
+                                  data={"chat_id": chat_id, "caption": final_cap},
+                                  files={"video": f}, timeout=180)
         else:
             r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                              json={"chat_id": chat_id, "text": caption}, timeout=30)
-        print(f"Telegram response: {r.status_code} {r.text[:600]}")
-        return r.ok
+                              json={"chat_id": chat_id, "text": final_cap}, timeout=30)
+        print(f"Telegram: {r.status_code} {r.text[:800]}")
+        if r.ok:
+            print("✅ Telegram published - CLEAN caption (no [commands])")
+            return True
+        else:
+            print(f"❌ Telegram failed")
+            return False
     except Exception as e:
-        print(f"Telegram error: {e}")
+        print(f"❌ Telegram error: {e}")
         return False
 
-def post_facebook(text, video_path=None):
-    page_id_raw = env_any("FB_PAGE_ID", "META_PAGE_ID")
-    token_raw = env_any("FB_PAGE_ACCESS_TOKEN", "META_PAGE_TOKEN", "META_PAGE_ACCESS_TOKEN")
-    print(f"[Facebook] raw page_id={page_id_raw} token={bool(token_raw)}")
+def post_facebook(caption, video_path):
+    page_id_raw = env_any("FB_PAGE_ID")
+    token_raw = env_any("FB_PAGE_ACCESS_TOKEN", "META_PAGE_TOKEN")
+    print(f"[Facebook] page_id_raw={page_id_raw} token={bool(token_raw)}")
     if not page_id_raw or not token_raw:
-        print("Facebook SKIP - FB_PAGE_ID لازم است")
+        print("❌ Facebook SKIP - secrets missing")
         return False
+    # Filter out profile ID 61595357222750 that causes global id error
     page_ids = [p.strip() for p in page_id_raw.split(',') if p.strip()]
-    tokens = [t.strip() for t in token_raw.split(',')] if ',' in token_raw else [token_raw]*len(page_ids)
-    if len(tokens) != len(page_ids):
-        tokens = [tokens[0]]*len(page_ids)
-    ok=False
-    for i, pid in enumerate(page_ids):
-        tok = tokens[i] if i < len(tokens) else tokens[0]
-        print(f"[Facebook] {i+1}/{len(page_ids)} -> {pid}")
+    valid_ids = []
+    for pid in page_ids:
+        if pid.isdigit() and pid.startswith("61595") and len(pid) > 12:
+            print(f"⚠️ Skipping profile ID {pid} (not Page) - causes global id error - use Iranamedia")
+            continue
+        valid_ids.append(pid)
+    if not valid_ids:
+        print("❌ Facebook no valid Page IDs")
+        return False
+
+    overall = False
+    for pid in valid_ids:
+        bot_token = token_raw.split(',')[0].strip()
+        page_token = bot_token
+        # Try exchange System User token -> Page token (Claude fix)
         try:
-            if video_path:
+            r_ex = requests.get(f"https://graph.facebook.com/v20.0/{pid}", params={"fields":"access_token,name","access_token":bot_token}, timeout=15)
+            if r_ex.ok and "access_token" in r_ex.json():
+                page_token = r_ex.json()["access_token"]
+                print(f"ℹ️ Exchanged to Page token for {pid}")
+        except: pass
+
+        try:
+            if video_path and Path(video_path).exists():
                 with open(video_path, "rb") as f:
                     r = requests.post(f"https://graph.facebook.com/v20.0/{pid}/videos",
-                                      data={"description": text[:2000], "access_token": tok},
+                                      data={"description": caption[:2000], "access_token": page_token},
                                       files={"source": f}, timeout=180)
             else:
                 r = requests.post(f"https://graph.facebook.com/v20.0/{pid}/feed",
-                                  data={"message": text[:2000], "access_token": tok}, timeout=30)
-            print(f"Facebook {pid}: {r.status_code} {r.text[:400]}")
+                                  data={"message": caption[:2000], "access_token": page_token}, timeout=30)
+            print(f"Facebook {pid}: {r.status_code} {r.text[:600]}")
             if r.ok:
-                ok=True
+                print(f"✅ Facebook {pid} published")
+                overall = True
+            else:
+                if "publish_video" in r.text or "No permission" in r.text:
+                    print(f"❌ Facebook {pid}: need publish_video permission in System User token")
         except Exception as e:
-            print(f"FB error {pid}: {e}")
-    return ok
-
-def post_instagram_reel(text, video_path=None):
-    ig_id_raw = env_any("IG_USER_ID", "INSTAGRAM_USER_ID", "IG_ID")
-    token_raw = env_any("FB_PAGE_ACCESS_TOKEN", "META_PAGE_TOKEN", "IG_ACCESS_TOKEN")
-    print(f"[Instagram] ig_id={ig_id_raw} token={bool(token_raw)} video={video_path}")
-    if not ig_id_raw or not token_raw or not video_path:
-        print("Instagram SKIP - IG_USER_ID لازم است (و FB_PAGE_ACCESS_TOKEN)")
-        return False
-    ig_ids = [p.strip() for p in ig_id_raw.split(',') if p.strip()]
-    tokens = [t.strip() for t in token_raw.split(',')] if ',' in token_raw else [token_raw]*len(ig_ids)
-    if len(tokens) != len(ig_ids):
-        tokens = [tokens[0]]*len(ig_ids)
-    
-    overall=False
-    for idx, ig_id in enumerate(ig_ids):
-        tok = tokens[idx] if idx < len(tokens) else tokens[0]
-        print(f"[Instagram] Reel {idx+1}/{len(ig_ids)} -> {ig_id}")
-        try:
-            # مرحله 1: ساخت session آپلود resumable
-            # بر اساس مستندات IG Graph API v20
-            init_url = f"https://graph.facebook.com/v20.0/{ig_id}/media"
-            init_data = {
-                "media_type": "REELS",
-                "upload_type": "resumable",
-                "access_token": tok
-            }
-            r1 = requests.post(init_url, data=init_data, timeout=30)
-            print(f"IG init: {r1.status_code} {r1.text[:600]}")
-            if not r1.ok:
-                continue
-            j1 = r1.json()
-            upload_url = j1.get("upload_url")
-            # بعضی نسخه‌ها uri می‌دهند
-            if not upload_url:
-                upload_url = j1.get("uri")
-            if not upload_url:
-                # اگر مستقیم id داد، یعنی از نوع قدیمی video_url است - نیاز به URL عمومی
-                # برای تست، سعی می‌کنیم با video_id موجود ادامه دهیم
-                print(f"IG no upload_url, trying video_id flow: {j1}")
-                continue
-            
-            # مرحله 2: آپلود فایل
-            file_size = Path(video_path).stat().st_size
-            with open(video_path, "rb") as f:
-                # آپلود باینری - هدر مخصوص IG
-                headers = {
-                    "Authorization": f"OAuth {tok}",
-                    "offset": "0",
-                    "file_size": str(file_size)
-                }
-                r2 = requests.post(upload_url, data=f.read(), headers=headers, timeout=180)
-                print(f"IG upload: {r2.status_code} {r2.text[:600]}")
-            
-            # مرحله 3: چک وضعیت و ساخت container نهایی اگر video_id داریم
-            # در نسخه جدید، بعد از آپلود، باید با upload_url دوباره container بسازی
-            # فعلا 5 ثانیه صبر
-            time.sleep(5)
-            
-            # مرحله 4: ساخت Reel با caption
-            # برای نسخه resumable، باید video_id را از مرحله اول گرفت - اگر j1 شامل id نیست، دوباره init می‌کنیم با caption
-            # تلاش نهایی: استفاده از upload_url به عنوان video
-            # این بخش ممکن است نیاز به polling داشته باشد
-            
-            # ساده‌ترین: بعد از آپلود، یک container نهایی می‌سازیم
-            # اگر upload_url شامل video_id است، از آن استفاده کن
-            # در غیر اینصورت، سعی کن با همان ig_id/media و caption
-            # این پیاده‌سازی بر اساس مستندات رسمی 2024 است و ممکن است نیاز به تنظیم داشته باشد
-            
-            print(f"IG upload done for {ig_id}, waiting for processing...")
-            # مرحله publish - باید creation_id بگیریم
-            # فعلا لاگ می‌کنیم که آپلود شد - publish مرحله بعدی است که نیاز به polling دارد
-            
-            # تلاش برای publish با استفاده از id که از init گرفتیم (اگر id داشت)
-            creation_id = j1.get("id")
-            if creation_id:
-                # اضافه کردن caption
-                r3 = requests.post(f"https://graph.facebook.com/v20.0/{ig_id}/media",
-                                   data={"media_type":"REELS","video_id":creation_id,"caption":text[:2200],"access_token":tok},
-                                   timeout=30)
-                print(f"IG create with caption: {r3.status_code} {r3.text[:600]}")
-                if r3.ok:
-                    cid = r3.json().get("id")
-                    if cid:
-                        time.sleep(3)
-                        r4 = requests.post(f"https://graph.facebook.com/v20.0/{ig_id}/media_publish",
-                                           data={"creation_id":cid,"access_token":tok}, timeout=30)
-                        print(f"IG publish: {r4.status_code} {r4.text[:600]}")
-                        if r4.ok:
-                            overall=True
-            
-            # اگر بالا موفق نشد، حداقل تلاش کردیم
-            if not overall:
-                print(f"IG {ig_id}: uploaded but publish needs manual check - see https://developers.facebook.com/docs/instagram-api/guides/reels")
-            
-        except Exception as e:
-            print(f"Instagram error {ig_id}: {e}")
+            print(f"❌ Facebook error {pid}: {e}")
     return overall
 
-def upload_youtube(text, video_path=None):
-    client_id = env_any("YOUTUBE_CLIENT_ID", "YT_CLIENT_ID")
-    client_secret = env_any("YOUTUBE_CLIENT_SECRET", "YT_CLIENT_SECRET")
-    refresh_token = env_any("YOUTUBE_REFRESH_TOKEN", "YT_REFRESH_TOKEN")
-    print(f"[YouTube] {bool(client_id)} {bool(client_secret)} {bool(refresh_token)} video={video_path}")
-    if not all([client_id, client_secret, refresh_token, video_path]):
-        print("YouTube SKIP")
+def post_instagram(caption, video_path):
+    ig_id = env_any("IG_USER_ID")
+    token = env_any("FB_PAGE_ACCESS_TOKEN", "META_PAGE_TOKEN")
+    print(f"[Instagram] ig_id={ig_id} token={bool(token)}")
+    if not ig_id:
+        print("⚠️ Instagram SKIP - IG_USER_ID empty - run verify_ig_v2.py to get it")
+        return False
+    if not token or not video_path:
+        print("⚠️ Instagram SKIP - token/video missing")
+        return False
+    public_url = "https://iranamedia.github.io/final_5min.mp4"
+    print(f"[Instagram] trying public URL {public_url} (must be committed to Pages first)")
+    try:
+        # Try public URL method (Claude recommended)
+        r1 = requests.post(f"https://graph.facebook.com/v20.0/{ig_id}/media",
+                           data={"media_type":"REELS","video_url":public_url,"caption":caption[:2200],"access_token":token}, timeout=30)
+        print(f"IG public URL: {r1.status_code} {r1.text[:800]}")
+        if r1.ok:
+            cid = r1.json().get("id")
+            if cid:
+                for _ in range(8):
+                    time.sleep(4)
+                    rs = requests.get(f"https://graph.facebook.com/v20.0/{cid}", params={"fields":"status_code","access_token":token}, timeout=15)
+                    if "FINISHED" in rs.text or "PUBLISHED" in rs.text:
+                        break
+                r_pub = requests.post(f"https://graph.facebook.com/v20.0/{ig_id}/media_publish", data={"creation_id":cid,"access_token":token}, timeout=30)
+                print(f"IG publish: {r_pub.status_code} {r_pub.text[:600]}")
+                if r_pub.ok:
+                    print("✅ Instagram Reel published via public URL")
+                    return True
+        print("⚠️ Instagram public URL failed - may need few minutes for Pages to propagate")
+        return False
+    except Exception as e:
+        print(f"❌ Instagram error: {e}")
+        return False
+
+def post_youtube(caption, video_path):
+    cid = env_any("YOUTUBE_CLIENT_ID", "YT_CLIENT_ID", "YOUTUBE_CLIENT_ID")
+    csec = env_any("YOUTUBE_CLIENT_SECRET", "YT_CLIENT_SECRET")
+    rtok = env_any("YOUTUBE_REFRESH_TOKEN", "YT_REFRESH_TOKEN")
+    if not all([cid, csec, rtok, video_path]):
+        print("⚠️ YouTube SKIP")
         return False
     try:
         from googleapiclient.discovery import build
         from google.oauth2.credentials import Credentials
         from googleapiclient.http import MediaFileUpload
-        creds = Credentials(None, refresh_token=refresh_token, token_uri="https://oauth2.googleapis.com/token",
-                            client_id=client_id, client_secret=client_secret)
-        youtube = build("youtube", "v3", credentials=creds)
-        title = (text.split("\n")[0][:85] if text else "رویدادهای ایران") + " | IRANA"
-        body = {
-            "snippet": {
-                "title": title[:100],
-                "description": text[:4000] + "\n\n@IranaMediaNews\nhttps://iranamedia.github.io",
-                "tags": ["ایران","Iran","IRANA"],
-                "categoryId": "25"
-            },
-            "status": {"privacyStatus": "public"}
-        }
+        creds = Credentials(None, refresh_token=rtok, token_uri="https://oauth2.googleapis.com/token", client_id=cid, client_secret=csec)
+        yt = build("youtube", "v3", credentials=creds)
+        title = (caption.split("\n")[0][:80] if caption else "رویدادهای ایران") + " | IRANA 2585"
+        body = {"snippet":{"title":title[:100],"description":caption[:4000]+"\n\niranamedia.github.io","tags":["ایران","IRANA"],"categoryId":"25"},"status":{"privacyStatus":"public"}}
         media = MediaFileUpload(video_path, resumable=True, mimetype="video/mp4")
-        req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
-        resp = req.execute()
-        print(f"YouTube uploaded ID: {resp.get('id')}")
+        resp = yt.videos().insert(part="snippet,status", body=body, media_body=media).execute()
+        print(f"✅ YouTube {resp.get('id')}")
         return True
     except Exception as e:
-        print(f"YouTube error: {e}")
+        print(f"❌ YouTube {e}")
         return False
 
 if __name__ == "__main__":
-    sf, txt = get_latest_script()
-    vf = get_latest_video()
-    print(f"Script: {sf}")
-    print(f"Video: {vf}")
-    send_telegram(txt, vf)
-    post_facebook(txt, vf)
-    post_instagram_reel(txt, vf)
-    upload_youtube(txt, vf)
-    print("Distribution done - Telegram 200 + FB both + IG + YouTube")
+    caption, video = get_latest_caption_and_video()
+    print(f"Caption len {len(caption)} (clean, no [commands])\n{caption[:500]}\n")
+    print(f"Video {video} exists={Path(video).exists() if video else False}")
+    if video and Path(video).exists():
+        import subprocess, shlex
+        try:
+            d = subprocess.check_output(f'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {shlex.quote(video)}', shell=True).decode().strip()
+            print(f"Video duration {d}s (should be >60s, not 9s)")
+        except: pass
+
+    res = {}
+    res["telegram"] = send_telegram(caption, video)
+    res["facebook"] = post_facebook(caption, video)
+    res["instagram"] = post_instagram(caption, video)
+    res["youtube"] = post_youtube(caption, video)
+
+    print("\n=== FINAL TRUTHFUL REPORT (Claude fix - no fake success) ===")
+    for k,v in res.items():
+        print(f"{'✅' if v else '❌'} {k}: {'OK' if v else 'FAILED/SKIPPED'}")
+    
+    if res["telegram"] and res["youtube"]:
+        print("\n✅ Core (Telegram+YouTube) OK - TV is live")
+    if not res["facebook"]:
+        print("ℹ️ Facebook: set FB_PAGE_ID=Iranamedia only + regenerate System User token with publish_video")
+    if not res["instagram"]:
+        print("ℹ️ Instagram: set IG_USER_ID secret via verify_ig_v2.py + ensure https://iranamedia.github.io/final_5min.mp4 public")
