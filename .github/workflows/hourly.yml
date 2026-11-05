@@ -32,4 +32,3 @@ jobs:
           git add final_broadcast/ || true
           git commit -m "پخش ساعتي 2585 - اينترو دقيق شما - $(date -u)" || true
           git push || true
-
