@@ -27,7 +27,7 @@ jobs:
       name: github-pages
     steps:
       - uses: actions/checkout@v5
-      - name: واژه‌های ایرانا (آبراه پارس، دریای پارس، اروندرود)
+      - name: واژه‌های ایرانا (آبراه پارس، اروندرود، نفت ایران …)
         run: python3 tools/terms.py bulletin/latest.json
       - name: ابزارها (ffmpeg از GitHub، قلم وزیرمتن)
         timeout-minutes: 6
