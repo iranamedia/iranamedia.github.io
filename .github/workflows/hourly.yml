@@ -29,7 +29,7 @@ jobs:
 
       - name: Build script - Persian only, no English, no شاهنشاهی word
         run: |
-          python iranamedia_final_persian_only.py
+          python iranamedia_final_CREDIBLE.py
           ls -lh final_broadcast/
           cat final_broadcast/caption_latest.txt
 
