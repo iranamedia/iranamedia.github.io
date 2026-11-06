@@ -1,0 +1,20 @@
+{
+  "title": "پشتیبانی از رسانه ایرانا",
+  "intro": "ایرانا هر ساعت تازه‌ترین رویدادهای ایران را می‌آورد. اگر این کار را ارزشمند می‌دانید، با هر یک از راه‌های زیر یاری کنید.",
+  "links": [
+    {
+      "label": "ایستگاه رسانه ایرانا",
+      "url": "https://t.me/IranaMediaNews"
+    }
+  ],
+  "donations": [
+    {
+      "label": "بیت‌کوین (Bitcoin)",
+      "value": "3JJdq1r6Rtrcc3c4AwXfxmduRjPUqd6X1Q"
+    },
+    {
+      "label": "اتریوم (Ethereum، شبکه‌ی ERC-20)",
+      "value": "0x7df808831A0Fce7EdC3e4B9360309d026BB4ef9B"
+    }
+  ]
+}

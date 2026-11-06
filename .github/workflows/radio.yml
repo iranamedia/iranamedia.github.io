@@ -1,0 +1,105 @@
+name: رسانه ایرانا — رادیو، تلویزیون و تارنما
+# هر بار که خبرنامه (bulletin/latest.json) به‌روز شود:
+#   هر ساعت: متن خبرنامه در تلگرام + تارنمای ایرانا
+#   ساعت‌های گفتاری (RADIO_HOURS، به وقت UTC): رادیو با دو گوینده + تلویزیون ایرانا
+#   در تلگرام، یوتیوب، فیسبوک و اینستاگرام
+on:
+  push:
+    paths: ["bulletin/latest.json"]
+  workflow_dispatch:
+    inputs:
+      voice:
+        description: "رادیو و تلویزیون را همین حالا بساز (بیرون از ساعت‌های گفتاری)"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: radio
+  cancel-in-progress: false
+jobs:
+  broadcast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v5
+      - name: ابزارها (ffmpeg از GitHub، قلم وزیرمتن)
+        timeout-minutes: 6
+        run: |
+          curl -sSfL --retry 3 -o ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          tar -xf ff.tar.xz && sudo cp ffmpeg-master-latest-linux64-gpl/bin/ff* /usr/local/bin/ && rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
+          ffmpeg -version | head -1
+          pip install -q --break-system-packages pillow
+          if ! python3 -c "from PIL import features; assert features.check('raqm')" 2>/dev/null; then
+            timeout 150 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq || true
+            timeout 150 sudo apt-get install -y -qq --no-install-recommends libraqm0 libfribidi0 libharfbuzz0b || true
+          fi
+          python3 -c "from PIL import features; print('raqm', features.check('raqm'))"
+          mkdir -p assets/fonts
+          for w in Black Bold Medium; do
+            curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-$w.ttf || curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@master/fonts/ttf/Vazirmatn-$w.ttf || true
+          done
+      - name: رادیو ایرانا (تلگرام)
+        id: radio
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          VOICE_ID: ${{ secrets.BAKTASH_VOICE_ID || 'g8OwRTuNvpJKpiVarLb6' }}
+          VOICE_ID_2: ${{ secrets.CHARLOTTE_VOICE_ID || 'XB0fDUnXU5powFXDhCwa' }}
+          TELEGRAM_CHANNEL: "@IranaMediaNews"
+          SAVE_DIR: _site
+          FORCE_VOICE: ${{ inputs.voice && '1' || '' }}
+        run: python3 radio.py
+      - name: تلویزیون ایرانا
+        id: tv
+        if: steps.radio.outcome == 'success' && hashFiles('_site/timeline.json') != ''
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL: "@IranaMediaNews"
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          SAVE_DIR: _site
+        run: python3 tv.py
+      - name: تارنمای ایرانا
+        if: always()
+        run: |
+          mkdir -p _site && cp -r site/. _site/ && cp bulletin/latest.json _site/latest.json
+          python3 tools/json2page.py bulletin/latest.json _site/index.html _site/news.html
+          python3 tools/inject_support.py _site || true
+          rm -f _site/timeline.json
+          ls -la _site
+      - uses: actions/configure-pages@v5
+        if: always()
+        continue-on-error: true
+      - uses: actions/upload-pages-artifact@v3
+        if: always()
+        with:
+          path: _site
+      - name: انتشار تارنما
+        if: always()
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - name: یوتیوب، فیسبوک و اینستاگرام
+        if: steps.radio.outcome == 'success'
+        env:
+          META_PAGE_ID: ${{ secrets.META_PAGE_ID || secrets.FB_PAGE_ID || '150299551406' }}
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID || '17841441006602757' }}
+          IG_CLIP: "90"
+          YT_EVERY: "1"
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          TV_WIDE: _tv/irana-tv.mp4
+          TV_TALL: _tv/irana-tv-tall.mp4
+        run: python3 social.py
+      - uses: actions/upload-artifact@v4
+        if: steps.tv.outcome == 'success'
+        with:
+          name: irana-tv
+          path: _tv/irana-tv*.mp4
+          retention-days: 3
