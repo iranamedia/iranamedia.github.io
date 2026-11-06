@@ -428,7 +428,8 @@ def main():
         mp4 = video(png, AUDIO, os.path.join(OUT, "irana.mp4"))
         mp4w = video(wide_png, AUDIO, os.path.join(OUT, "irana-wide.mp4"), WAVE_W)   # یوتیوب: افقی، تمام‌صفحه
     clip = os.path.join(OUT, "irana-clip.mp4")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-t", "90", "-c", "copy", clip], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-t", "90", "-c", "copy",
+                    "-movflags", "+faststart", clip], check=True)
     print("video", os.path.getsize(mp4) // 1024, "KB")
     if "--video-only" in sys.argv: return
     failed = []
