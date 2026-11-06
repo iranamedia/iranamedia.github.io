@@ -21,6 +21,13 @@ BULLETIN = os.path.join(HERE, "bulletin", "latest.json")
 FONTS = os.path.join(HERE, "assets", "fonts")
 INTRO = os.path.join(HERE, "assets", "irana_intro_final.mp4")
 LOGO = os.path.join(HERE, "assets", "irana_lion_gold_transparent.png")
+PRESENTER = {"man": os.path.join(HERE, "assets", "presenter_man.jpg"),        # گوینده‌ها در استودیو
+             "woman": os.path.join(HERE, "assets", "presenter_woman.jpg")}
+# نوشته‌های انگلیسی درون عکس‌ها (نام، «NEWS NOW»، ساعت ساختگی) نباید دیده شود:
+# فقط بخش بالای عکس به کار می‌رود (نوار پایینِ عکس بیرون می‌ماند) و نوشته‌های پس‌زمینه مات می‌شوند.
+PHOTO_KEEP = 0.86
+PHOTO_BLUR = {"woman": [(0.66, 0.22, 0.92, 0.50), (0.0, 0.42, 0.34, 0.58), (0.90, 0.22, 1.0, 0.50)],
+              "man": []}
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHANNEL = os.environ.get("TELEGRAM_CHANNEL", "@IranaMediaNews")
 PEXELS = os.environ.get("PEXELS_API_KEY", "")
@@ -57,7 +64,7 @@ F = {}
 
 
 def fonts():
-    F.update(big=font("Black", 120), name=font("Black", 62), head=font("Bold", 74), lower=font("Bold", 60),
+    F.update(big=font("Black", 120), name=font("Black", 62), title=font("Black", 52), head=font("Bold", 74), lower=font("Bold", 60),
              list=font("Bold", 50), meta=font("Medium", 40), small=font("Medium", 32))
 
 
@@ -130,6 +137,38 @@ def slide_end(b, path):
     centered(d, 610, "رسانه ایرانا", F["big"], GOLD)
     centered(d, 780, "تازه‌ترین رویدادهای ایران · شبانروزی، سر هر ساعت", F["head"], WHITE)
     img.convert("RGB").save(path)
+
+
+def lower_third(b, path, title, label):
+    """قاب گوینده: نشان کوچک در گوشه (تا چهره زیر نوار نرود) + نوار تیتر پهن و پررنگ
+    که نوشته‌های چاپ‌شده در پایین عکس استودیو را می‌پوشاند."""
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    name_w = int(tw(d, "رسانه ایرانا", F["title"]))
+    d.rounded_rectangle([W - 40 - name_w - 130, 30, W - 40, 122], radius=20, fill=BG + (215,))
+    if os.path.exists(LOGO):
+        lg = Image.open(LOGO).convert("RGBA").resize((80, 80), Image.LANCZOS)
+        img.alpha_composite(lg, (W - 140, 36))
+    at_right(d, W - 150, 40, "رسانه ایرانا", F["title"], GOLD)
+    sw = int(tw(d, b["stamp"], F["small"]))
+    d.rounded_rectangle([40, 44, 40 + sw + 48, 108], radius=18, fill=BG + (200,))
+    at_left(d, 64, 56, b["stamp"], F["small"], WHITE)
+    d.rectangle([0, H - 100, W, H - 94], fill=GOLD + (255,))
+    d.rectangle([0, H - 94, W, H], fill=BAR + (255,))
+    at_left(d, 56, H - 70, "iranamedia.github.io  ·  t.me/IranaMediaNews", F["small"], MIST)
+    lines = wrap(d, title, F["lower"], W - 300)[:3]
+    top = min(H - 100 - (96 + len(lines) * 84), int(H * 0.70))
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.rectangle([0, top, W, H - 100], fill=BG + (255,))
+    ld.rectangle([0, top, W, top + 5], fill=GOLD + (255,))
+    img.alpha_composite(layer)
+    d = ImageDraw.Draw(img)
+    at_right(d, W - 70, top + 20, label, F["small"], GOLD)
+    y = top + 20 + max(52, (H - 100 - top - 20 - len(lines) * 84) // 2)
+    for line in lines:
+        centered(d, y, line, F["lower"], WHITE); y += 84
+    img.save(path)
 
 
 def slide_story(b, n, path, over_video=False):
@@ -252,6 +291,36 @@ def clip_still(png, seconds, out):
     ff("-loop", "1", "-i", png, "-t", f"{seconds:.3f}", "-vf", f"scale={W}:{H},setsar=1", "-tune", "stillimage", *ENC, "-an", out)
 
 
+def studio_photo(voice):
+    """عکس آماده‌ی گوینده: برش ۱۶:۹ از بخش بالای عکس + مات کردن نوشته‌های پس‌زمینه."""
+    src = PRESENTER.get(voice, "")
+    if not os.path.exists(src):
+        return None
+    out = os.path.join(OUT, f"studio_{voice}.png")
+    if os.path.exists(out):
+        return out
+    from PIL import ImageFilter
+    im = Image.open(src).convert("RGB")
+    w, h = im.size
+    for x0, y0, x1, y1 in PHOTO_BLUR.get(voice, []):
+        box = (int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h))
+        im.paste(im.crop(box).filter(ImageFilter.GaussianBlur(18)), box)
+    ch = int(h * PHOTO_KEEP); cw = min(w, ch * 16 // 9)
+    im = im.crop(((w - cw) // 2, 0, (w - cw) // 2 + cw, ch)).resize((W, H), Image.LANCZOS)
+    im.save(out)
+    return out
+
+
+def clip_presenter(photo, png, seconds, out):
+    """عکس استودیوی گوینده با حرکت آرام دوربین (نزدیک‌شدن آهسته)، و نوار تیتر روی آن."""
+    frames = max(int(seconds * 25), 1)
+    ff("-framerate", "25", "-loop", "1", "-i", photo, "-framerate", "25", "-loop", "1", "-i", png,
+       "-t", f"{seconds:.3f}", "-filter_complex",
+       f"[0:v]scale=2560:1440,"
+       f"zoompan=z='1+0.06*on/{frames}':x='iw/2-(iw/zoom/2)':y='ih*0.42-(ih/zoom*0.42)':d=1:s={W}x{H}:fps=25,"
+       f"setsar=1[bg];[bg][1:v]overlay=0:0", *ENC, "-an", out)
+
+
 def clip_over(video, png, seconds, out):
     ff("-stream_loop", "-1", "-i", video, "-loop", "1", "-i", png, "-t", f"{seconds:.3f}", "-filter_complex",
        f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1,"
@@ -259,12 +328,13 @@ def clip_over(video, png, seconds, out):
 
 
 def visuals(timeline, n_items):
-    """بخش‌های صدا را به نماها تبدیل می‌کند: سرآغاز، هر خبر (با درنگ پس از آن)، پایان."""
+    """بخش‌های صدا را به نماها تبدیل می‌کند: سرآغاز، هر خبر (با درنگ پس از آن)، سخن پایانی، آگهی."""
     shots = []
     for seg in timeline:
-        key = ("story", seg["n"]) if seg["kind"] == "story" and seg["n"] < n_items else \
+        key = ("story", seg["n"], seg.get("voice", "man")) if seg["kind"] == "story" and seg["n"] < n_items else \
               ("title",) if seg["kind"] in ("head", "sting") else \
-              ("end",) if seg["kind"] in ("outro", "promo", "story") else None
+              ("outro", seg.get("voice", "man")) if seg["kind"] in ("outro", "story") else \
+              ("end",) if seg["kind"] == "promo" else None
         if key is None:                                   # درنگ: به نمای پیشین می‌پیوندد
             if shots: shots[-1][1] += seg["dur"]
             continue
@@ -293,17 +363,37 @@ def build():
             slide_title(b, png); clip_still(png, seconds, out)
         elif key[0] == "end":
             slide_end(b, png); clip_still(png, seconds, out)
+        elif key[0] == "outro":
+            photo = studio_photo(key[1])
+            if photo:
+                lower_third(b, png, "تازه‌ترین رویدادهای ایران · شبانروزی، سر هر ساعت", "رسانه ایرانا")
+                clip_presenter(photo, png, seconds, out)
+            else:
+                slide_end(b, png); clip_still(png, seconds, out)
         else:
-            n = key[1]
+            n, voice = key[1], key[2]
+            photo = studio_photo(voice)
+            count = f"خبر {str(n + 1).translate(FA)} از {str(min(len(b['items']), 5)).translate(FA)}"
             bv = broll(b["items"][n], n)
-            if bv:
-                slide_story(b, n, png, over_video=True)
-                try:
-                    clip_over(bv, png, seconds, out)
-                except subprocess.CalledProcessError:
-                    bv = None
-            if not bv:
-                slide_story(b, n, png); clip_still(png, seconds, out)
+            # گوینده خبر را آغاز می‌کند، سپس فیلم نمادین؛ بی‌فیلم، گوینده تا پایان خبر
+            on_cam = (min(7.0, seconds * 0.45) if bv else seconds) if photo else 0
+            if on_cam:
+                lower_third(b, png, b["items"][n]["title"], count)
+                clip_presenter(photo, png, on_cam, out)
+                clips.append(out)
+                out, png = os.path.join(OUT, f"shot_{i:02d}b.mp4"), os.path.join(OUT, f"shot_{i:02d}b.png")
+            rest = seconds - on_cam
+            if rest > 0.05:
+                if bv:
+                    slide_story(b, n, png, over_video=True)
+                    try:
+                        clip_over(bv, png, rest, out)
+                    except subprocess.CalledProcessError:
+                        bv = None
+                if not bv:
+                    slide_story(b, n, png); clip_still(png, rest, out)
+            else:
+                continue
         clips.append(out)
     lst = os.path.join(OUT, "shots.txt")
     open(lst, "w").write("".join(f"file '{c}'\n" for c in clips))
