@@ -12,10 +12,27 @@ TERMS = [
 ]
 
 
+# «جمهوری اسلامی نفت ایران می‌فروشد»: در جمله‌ای که از جمهوری اسلامی سخن می‌گوید،
+# نفت یا گازِ فروخته/صادرشده، «نفت ایران» / «گاز ایران» نامیده می‌شود.
+OWNERS = "ایران|روسیه|عراق|عربستان|ونزوئلا|آمریکا|قطر|کویت|امارات|لیبی|خام|جهان|جهانی|برنت|وست|دریای|کشور|کشورهای|اوپک|سنگین|سبک|بیشتر|کمتر|خود"
+TRADE_BEFORE = rf"(?:فروش|صادرات|صادراتِ|قاچاق|درآمد|درآمدهای|خریداران|خرید|محموله‌ی|محموله‌های|محموله){ZW}"
+TRADE_AFTER = rf"{ZW}(?:را{ZW})?(?:می‌فروشد|می‌فروشند|فروخت|فروختند|فروخته|بفروشد|بفروشند|صادر|می‌فروخت)"
+
+
+def own_trade(sentence):
+    if "جمهوری اسلامی" not in sentence:
+        return sentence
+    sentence = re.sub(rf"({TRADE_BEFORE})(نفت|گاز)(?!{ZW}(?:{OWNERS}))(?![\w‌])", r"\1\2 ایران", sentence)
+    sentence = re.sub(rf"(?<![\w‌])(نفت|گاز)(?!{ZW}(?:{OWNERS}))(?=({TRADE_AFTER}))", r"\1 ایران", sentence)
+    if re.search(r"فروخت|فروش|صادر|می‌فروش|بفروش", sentence):     # «نفت را به چین فروخت»
+        sentence = re.sub(rf"(?<![\w\u200c])(نفت|گاز)(?={ZW}را(?![\w\u200c]))", r"\1 ایران", sentence)
+    return sentence
+
+
 def fix(text):
     for pat, rep in TERMS:
         text = re.sub(pat, rep, text)
-    return text
+    return "".join(own_trade(p) for p in re.split(r"(?<=[.!؟?؛])", text))
 
 
 if __name__ == "__main__":
