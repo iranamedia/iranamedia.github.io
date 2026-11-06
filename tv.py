@@ -139,6 +139,41 @@ def slide_end(b, path):
     img.convert("RGB").save(path)
 
 
+AD_VIDEO = os.path.join(HERE, "assets", "irana_ad.mp4")      # تصویر آگهی ایرانا (صدای آگهی: شارلوت، در assets/promo.mp3)
+AD_LINES = ["رسانه ایرانا", "تازه‌ترین رویدادهای ایران · شبانروزی، سر هر ساعت", "ایرانا همه جا با شما، با تازه‌ترین رویدادها"]
+
+
+def ad_overlay(path):
+    """نوشته‌ی فارسی آگهی روی واپسین نمای ویدیوی آگهی (بالای آسمان)."""
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(layer).rounded_rectangle([260, 40, W - 260, 330], radius=30, fill=BG + (175,))
+    img.alpha_composite(layer)
+    centered(d, 62, AD_LINES[0], F["name"], GOLD)
+    centered(d, 150, AD_LINES[1], F["lower"], WHITE)
+    centered(d, 236, AD_LINES[2], F["lower"], WHITE)
+    d.rectangle([0, H - 70, W, H], fill=BAR + (230,))
+    centered(d, H - 58, "iranamedia.github.io  ·  t.me/IranaMediaNews  ·  youtube.com/IRANAMEDIA", F["small"], MIST)
+    img.save(path)
+
+
+def clip_ad(seconds, out):
+    """آگهی ایرانا: ویدیوی آگهی (بی‌صدا، چون صدای شارلوت در صدای اصلی است)، سپس واپسین نما
+    با نزدیک‌شدن آهسته و نوشته‌ی فارسی آگهی تا پایان صدای آگهی."""
+    png = os.path.join(OUT, "ad_text.png")
+    ad_overlay(png)
+    vlen = dur(AD_VIDEO)
+    hold = max(seconds - vlen, 0)
+    ff("-i", AD_VIDEO, "-framerate", "25", "-loop", "1", "-i", png, "-t", f"{seconds:.3f}", "-filter_complex",
+       f"[0:v]fps=25,scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setsar=1,"
+       f"tpad=stop_mode=clone:stop_duration={hold + 1:.3f},"
+       f"zoompan=z='if(lt(in_time,{vlen:.2f}),1,min(1+0.0015*(in-{int(vlen*25)}),1.08))':"
+       f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps=25[v];"
+       f"[1:v]format=rgba,fade=t=in:st={max(vlen - 0.6, 0):.2f}:d=0.8:alpha=1[t];"
+       f"[v][t]overlay=0:0:enable='gte(t,{max(vlen - 0.6, 0):.2f})'", *ENC, "-an", out)
+
+
 def lower_third(b, path, title, label):
     """قاب گوینده: نشان کوچک در گوشه (تا چهره زیر نوار نرود) + نوار تیتر پهن و پررنگ
     که نوشته‌های چاپ‌شده در پایین عکس استودیو را می‌پوشاند."""
@@ -362,7 +397,13 @@ def build():
         if key[0] == "title":
             slide_title(b, png); clip_still(png, seconds, out)
         elif key[0] == "end":
-            slide_end(b, png); clip_still(png, seconds, out)
+            if os.path.exists(AD_VIDEO):
+                try:
+                    clip_ad(seconds, out)
+                except subprocess.CalledProcessError:
+                    slide_end(b, png); clip_still(png, seconds, out)
+            else:
+                slide_end(b, png); clip_still(png, seconds, out)
         elif key[0] == "outro":
             photo = studio_photo(key[1])
             if photo:
