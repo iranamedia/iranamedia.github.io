@@ -1,8 +1,8 @@
 name: رسانه ایرانا — رادیو، تلویزیون و تارنما
 # هر بار که خبرنامه (bulletin/latest.json) به‌روز شود:
 #   هر ساعت: متن خبرنامه در تلگرام + تارنمای ایرانا
-#   ساعت‌های گفتاری (RADIO_HOURS، به وقت UTC): رادیو با دو گوینده + تلویزیون ایرانا
-#   در تلگرام، یوتیوب، فیسبوک و اینستاگرام
+#   ساعت ۸ و ۲۰ تهران: رادیو با دو گوینده + تلویزیون ایرانا در تلگرام، یوتیوب، فیسبوک و اینستاگرام
+# همه‌چیز پیش‌تر ساخته می‌شود و درست سر ساعت ایران منتشر می‌شود (tools/wait_hour.py).
 on:
   push:
     paths: ["bulletin/latest.json"]
@@ -22,7 +22,7 @@ concurrency:
 jobs:
   broadcast:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     environment:
       name: github-pages
     steps:
@@ -43,35 +43,31 @@ jobs:
           for w in Black Bold Medium; do
             curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-$w.ttf || curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@master/fonts/ttf/Vazirmatn-$w.ttf || true
           done
-      - name: رادیو ایرانا (تلگرام)
+      - name: ساختن رادیو (دو گوینده)
         id: radio
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           VOICE_ID: ${{ secrets.BAKTASH_VOICE_ID || 'g8OwRTuNvpJKpiVarLb6' }}
           VOICE_ID_2: ${{ secrets.CHARLOTTE_VOICE_ID || 'XB0fDUnXU5powFXDhCwa' }}
-          TELEGRAM_CHANNEL: "@IranaMediaNews"
           SAVE_DIR: _site
           FORCE_VOICE: ${{ inputs.voice && '1' || '' }}
-        run: python3 radio.py
-      - name: تلویزیون ایرانا
+        run: python3 radio.py --build
+      - name: ساختن تلویزیون ایرانا
         id: tv
         if: steps.radio.outcome == 'success' && hashFiles('_site/timeline.json') != ''
         continue-on-error: true
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL: "@IranaMediaNews"
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           SAVE_DIR: _site
-        run: python3 tv.py
-      - name: تارنمای ایرانا
+        run: python3 tv.py --no-send
+      - name: آماده‌سازی تارنما
         if: always()
         run: |
           mkdir -p _site && cp -r site/. _site/ && cp bulletin/latest.json _site/latest.json
           python3 tools/json2page.py bulletin/latest.json _site/index.html _site/news.html
           python3 tools/inject_support.py _site || true
           rm -f _site/timeline.json
-          ls -la _site
       - uses: actions/configure-pages@v5
         if: always()
         continue-on-error: true
@@ -79,10 +75,27 @@ jobs:
         if: always()
         with:
           path: _site
+      - name: درنگ تا سر ساعت ایران
+        if: steps.radio.outcome == 'success' && !inputs.voice
+        run: python3 tools/wait_hour.py bulletin/latest.json
       - name: انتشار تارنما
         if: always()
         continue-on-error: true
         uses: actions/deploy-pages@v4
+      - name: تلگرام (متن یا رادیو)
+        if: steps.radio.outcome == 'success'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL: "@IranaMediaNews"
+          SAVE_DIR: _site
+        run: python3 radio.py --send
+      - name: تلگرام (تلویزیون)
+        if: steps.tv.outcome == 'success'
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL: "@IranaMediaNews"
+        run: python3 tv.py --send-only
       - name: یوتیوب، فیسبوک و اینستاگرام
         if: steps.radio.outcome == 'success'
         env:

@@ -8,7 +8,7 @@
 - خروجی: _tv/irana-tv.mp4 (۱۹۲۰×۱۰۸۰، یوتیوب و تلگرام) و _tv/irana-tv-tall.mp4 (۱۰۸۰×۱۹۲۰، فیسبوک و اینستاگرام)
 - اگر TELEGRAM_BOT_TOKEN باشد، ویدیوی افقی به کانال تلگرام فرستاده می‌شود.
 
-اجرا: python3 tv.py [--no-send]
+اجرا: python3 tv.py [--no-send | --send-only]
 """
 import json, os, re, subprocess, sys, urllib.error, urllib.parse, urllib.request, uuid
 
@@ -326,6 +326,11 @@ def send(path, cap):
 
 
 if __name__ == "__main__":
+    if "--send-only" in sys.argv:                       # سر ساعت: فرستادن ویدیوی ساخته‌شده
+        wide = os.path.join(OUT, "irana-tv.mp4")
+        if not os.path.exists(wide): print("ویدیوی تلویزیون نیست"); sys.exit(0)
+        ok = BOT_TOKEN and send(wide, caption(json.load(open(BULLETIN, encoding="utf-8"))))
+        sys.exit(0 if ok else 1)
     wide = build()
     if wide and BOT_TOKEN and "--no-send" not in sys.argv:
         if not send(wide, caption(json.load(open(BULLETIN, encoding="utf-8")))):

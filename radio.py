@@ -287,7 +287,16 @@ def send(path, cap, stamp):
     if not res.get("ok"): fail(f"Telegram failed: {res}")
 
 
-HOURS = {int(x) for x in os.environ.get("RADIO_HOURS", "4,16").split(",") if x.strip()}   # ساعت‌های UTC گفتار (۸:۳۰ و ۲۰:۳۰ تهران)        # گفتار (و ویدیو) هر چند ساعت یک‌بار؛ در ساعت‌های دیگر فقط متن
+VOICE_HOURS = {int(x) for x in os.environ.get("VOICE_HOURS", "8,20").split(",") if x.strip()}   # ساعت‌های گفتاری به وقت تهران؛ دیگر ساعت‌ها فقط متن
+
+
+def stamp_hour(stamp):
+    m = re.search(r"ساعت\s*(\d+)", stamp.translate(_DIGITS))
+    return int(m.group(1)) if m else -1
+
+
+def voiced(b):
+    return bool(os.environ.get("FORCE_VOICE")) or stamp_hour(b["stamp"]) in VOICE_HOURS
 
 
 def send_text(cap):
@@ -312,7 +321,8 @@ def keep_old_audio():
         print("old audio not kept:", e)
 
 
-def main(src="bulletin/latest.json", dry=False):
+def main(src="bulletin/latest.json", dry=False, mode="all"):
+    """mode: build (ساختن صدا، بی‌فرستادن)، send (فرستادن آنچه ساخته شده)، all (هر دو)."""
     b = json.load(open(src, encoding="utf-8"))
     J = lambda x: x.replace("جمعه", "آدینه")         # رسانه ایرانا «آدینه» می‌گوید، نه «جمعه»
     b["stamp"] = J(b["stamp"]); b["items"] = [{k: J(v) for k, v in it.items()} for it in b.get("items", [])]
@@ -324,7 +334,17 @@ def main(src="bulletin/latest.json", dry=False):
         for cs in parts:
             for c in cs: print(len(c), "|", c[:80].replace("\n", " "), "…")
         print(caption(b)); return
-    if HOURS and datetime.datetime.utcnow().hour not in HOURS and not os.environ.get("FORCE_VOICE"):
+    sd = os.environ.get("SAVE_DIR", "")
+    if mode == "send":                                 # سر ساعت: فرستادن به تلگرام
+        if not BOT_TOKEN: fail("missing secret: TELEGRAM_BOT_TOKEN")
+        audio = os.path.join(sd, "latest.mp3")
+        if sd and not os.path.exists(os.path.join(sd, ".silent")) and os.path.exists(audio):
+            send(audio, caption(b), b["stamp"]); print("sent audio")
+        else:
+            send_text(caption(b)); print("sent text")
+        return
+    if not voiced(b):
+        if mode == "build": keep_old_audio(); print("text only (ساعت بی‌گفتار)"); return
         if not BOT_TOKEN: fail("missing secret: TELEGRAM_BOT_TOKEN")
         send_text(caption(b)); keep_old_audio(); print("text only (ساعت بی‌گفتار)"); return
     if not API_KEY or not BOT_TOKEN:
@@ -360,9 +380,11 @@ def main(src="bulletin/latest.json", dry=False):
             shutil.copy(out, os.path.join(os.environ["SAVE_DIR"], "latest.mp3"))
             with open(os.path.join(os.environ["SAVE_DIR"], "timeline.json"), "w", encoding="utf-8") as f:
                 json.dump({"stamp": b["stamp"], "segments": timeline}, f, ensure_ascii=False, indent=1)
-        send(out, caption(b), b["stamp"])
-    print("sent")
+        if mode != "build": send(out, caption(b), b["stamp"])
+    print("built" if mode == "build" else "sent")
 
 
 if __name__ == "__main__":
-    main(*(a for a in sys.argv[1:] if a != "--dry"), dry="--dry" in sys.argv)
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    mode = "build" if "--build" in sys.argv else "send" if "--send" in sys.argv else "all"
+    main(*args, dry="--dry" in sys.argv, mode=mode)
