@@ -58,6 +58,7 @@ jobs:
         if: steps.radio.outcome == 'success' && hashFiles('_site/timeline.json') != ''
         continue-on-error: true
         env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           SAVE_DIR: _site
         run: python3 tv.py --no-send

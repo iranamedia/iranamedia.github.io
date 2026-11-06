@@ -4,7 +4,7 @@
 - آغاز: ویدیوی آغاز ایرانا (assets/irana_intro_final.mp4)
 - سپس صدای دو گوینده (بکتاش و شارلوت، یکی در میان) با قاب خبری ۱۶:۹:
   نوار بالا (نشان، «رسانه ایرانا»، تاریخ و ساعت)، تیتر هر خبر، نوار پایین.
-- اگر PEXELS_API_KEY باشد، پشت هر خبر فیلم نمادین آزاد (Pexels) با برچسب «تصویر نمادین».
+- اگر PIXABAY_API_KEY (یا PEXELS_API_KEY) باشد، پشت هر خبر فیلم نمادین آزاد با برچسب «تصویر نمادین».
 - خروجی: _tv/irana-tv.mp4 (۱۹۲۰×۱۰۸۰، یوتیوب و تلگرام) و _tv/irana-tv-tall.mp4 (۱۰۸۰×۱۹۲۰، فیسبوک و اینستاگرام)
 - اگر TELEGRAM_BOT_TOKEN باشد، ویدیوی افقی به کانال تلگرام فرستاده می‌شود.
 
@@ -24,6 +24,8 @@ LOGO = os.path.join(HERE, "assets", "irana_lion_gold_transparent.png")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHANNEL = os.environ.get("TELEGRAM_CHANNEL", "@IranaMediaNews")
 PEXELS = os.environ.get("PEXELS_API_KEY", "")
+PIXABAY = os.environ.get("PIXABAY_API_KEY", "")
+BROLL_SOURCE = {"name": "Pexels"}
 
 W, H = 1920, 1080
 BG, BAR = (10, 21, 48), (18, 36, 90)
@@ -144,7 +146,7 @@ def slide_story(b, n, path, over_video=False):
         ld.rounded_rectangle([36, 150, 470, 206], radius=14, fill=(0, 0, 0, 150))
         img.alpha_composite(layer)
         d = ImageDraw.Draw(img)
-        at_left(d, 56, 158, "تصویر نمادین · Pexels", F["small"], MIST)
+        at_left(d, 56, 158, "تصویر نمادین · " + BROLL_SOURCE["name"], F["small"], MIST)
         at_right(d, W - 120, top + 18, count, F["small"], GOLD)
         y = top + 72
         for line in lines:
@@ -159,7 +161,7 @@ def slide_story(b, n, path, over_video=False):
         img.convert("RGB").save(path)
 
 
-# ---------- فیلم نمادین آزاد (Pexels) ----------
+# ---------- فیلم نمادین آزاد (Pixabay یا Pexels) ----------
 # فقط تصویرهای کلی و نمادین؛ هرگز فیلمی که با خودِ رویداد اشتباه گرفته شود.
 TOPICS = [
     (("نفتکش", "هرمز", "کشتی", "دریا", "بندر"), "oil tanker sea"),
@@ -184,32 +186,63 @@ def topic(it):
     return DEFAULT_TOPIC
 
 
+def _save(url, n):
+    out = os.path.join(OUT, f"broll_{n}.mp4")
+    req = urllib.request.Request(url, headers={"User-Agent": "IranaMedia/1.0"})
+    with urllib.request.urlopen(req, timeout=90) as r, open(out, "wb") as f:
+        f.write(r.read())
+    return out if os.path.getsize(out) >= 100_000 else None
+
+
+def pixabay(q, n):
+    url = "https://pixabay.com/api/videos/?" + urllib.parse.urlencode(
+        {"key": PIXABAY, "q": q, "per_page": 20, "safesearch": "true"})
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "IranaMedia/1.0"}), timeout=25) as r:
+        hits = json.load(r).get("hits", [])
+    for v in hits:
+        if ("pb", v["id"]) in _used or v.get("duration", 0) < 5:
+            continue
+        files = [f for f in v.get("videos", {}).values() if f.get("url") and 1280 <= (f.get("width") or 0) <= 1920
+                 and (f.get("width") or 0) > (f.get("height") or 0)]
+        if not files:
+            continue
+        out = _save(max(files, key=lambda x: x["width"])["url"], n)
+        if out:
+            _used.add(("pb", v["id"])); BROLL_SOURCE["name"] = "Pixabay"
+            print(f"b-roll {n}: '{q}' pixabay {v['id']}", flush=True)
+            return out
+    return None
+
+
+def pexels(q, n):
+    url = "https://api.pexels.com/videos/search?" + urllib.parse.urlencode(
+        {"query": q, "orientation": "landscape", "size": "medium", "per_page": 15})
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"Authorization": PEXELS}), timeout=25) as r:
+        vids = json.load(r).get("videos", [])
+    for v in vids:
+        if ("px", v["id"]) in _used or v.get("duration", 0) < 5:
+            continue
+        files = [f for f in v.get("video_files", []) if f.get("file_type") == "video/mp4"
+                 and f.get("width") and 1280 <= f["width"] <= 1920]
+        if not files:
+            continue
+        out = _save(max(files, key=lambda x: x["width"])["link"], n)
+        if out:
+            _used.add(("px", v["id"])); BROLL_SOURCE["name"] = "Pexels"
+            print(f"b-roll {n}: '{q}' pexels {v['id']}", flush=True)
+            return out
+    return None
+
+
 def broll(it, n):
-    if not PEXELS:
-        return None
+    finders = ([pixabay] if PIXABAY else []) + ([pexels] if PEXELS else [])
     for q in (topic(it), DEFAULT_TOPIC):
-        try:
-            url = "https://api.pexels.com/videos/search?" + urllib.parse.urlencode(
-                {"query": q, "orientation": "landscape", "size": "medium", "per_page": 15})
-            with urllib.request.urlopen(urllib.request.Request(url, headers={"Authorization": PEXELS}), timeout=25) as r:
-                vids = json.load(r).get("videos", [])
-            for v in vids:
-                if v["id"] in _used or v.get("duration", 0) < 5:
-                    continue
-                files = [f for f in v.get("video_files", []) if f.get("file_type") == "video/mp4"
-                         and f.get("width") and 1280 <= f["width"] <= 1920]
-                if not files:
-                    continue
-                f = max(files, key=lambda x: x["width"])
-                out = os.path.join(OUT, f"broll_{n}.mp4")
-                urllib.request.urlretrieve(f["link"], out)
-                if os.path.getsize(out) < 100_000:
-                    continue
-                _used.add(v["id"])
-                print(f"b-roll {n}: '{q}' pexels {v['id']}", flush=True)
-                return out
-        except Exception as e:
-            print(f"Pexels '{q}' failed: {e}", flush=True)
+        for find in finders:
+            try:
+                out = find(q, n)
+                if out: return out
+            except Exception as e:
+                print(f"{find.__name__} '{q}' failed: {e}", flush=True)
     return None
 
 
