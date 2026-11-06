@@ -1,4 +1,4 @@
-name: Iranamedia TV - Exact Intro 2585 - TV Only - REAL 5MIN (Fixes 9s placeholder + [commands] caption + Install deps timeout)
+name: Iranamedia TV - REAL 5MIN - Persian Only + No Black Screen + Cost Saver
 on:
   schedule:
     - cron: '30 * * * *'
@@ -7,10 +7,6 @@ on:
 jobs:
   broadcast:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    concurrency:
-      group: irana-broadcast
-      cancel-in-progress: false
     permissions:
       contents: write
     steps:
@@ -19,42 +15,35 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install deps
-        timeout-minutes: 6
+      - name: Install deps (fixed timeout + no recommends)
+        timeout-minutes: 8
         run: |
           pip install feedparser jdatetime requests Pillow gTTS google-api-python-client google-auth google-auth-oauthlib
-          # ffmpeg from GitHub (fast) instead of the slow Ubuntu/Azure apt mirror
-          curl -L --retry 3 --retry-delay 5 -o ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
-          tar -xf ff.tar.xz
-          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffmpeg ffmpeg-master-latest-linux64-gpl/bin/ffprobe /usr/local/bin/
-          rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
-          ffmpeg -version | head -1
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get install -y --no-install-recommends -o Acquire::Retries=3 -o Acquire::http::Timeout=30 ffmpeg
 
-      - name: Verify intro (must be exact yours)
+      - name: Verify intro
         run: |
-          ls -lh assets/irana_intro_final.mp4 || ls -lh irana_intro_final.mp4 || (echo "❌ MISSING INTRO" && exit 1)
+          ls -lh assets/irana_intro_final.mp4 || (echo "❌ MISSING INTRO" && exit 1)
           ls -lh assets/irana_lion_gold_transparent.png || true
-          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 assets/irana_intro_final.mp4 || true
 
-      - name: Build script - CLEAN caption (no [تنها صدا] commands)
+      - name: Build script - Persian only, no English, no شاهنشاهی word
         run: |
-          python iranamedia_final_clean.py
+          python iranamedia_final_persian_only.py
           ls -lh final_broadcast/
-          cat final_broadcast/caption_latest.txt || true
+          cat final_broadcast/caption_latest.txt
 
-      - name: Build REAL 5min video (fixes 9s placeholder bug)
+      - name: Build REAL 5min video - No black screen, lion background
         timeout-minutes: 10
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           BAKTASH_VOICE_ID: ${{ secrets.BAKTASH_VOICE_ID }}
-          CHARLOTTE_VOICE_ID: ${{ secrets.CHARLOTTE_VOICE_ID }}
         run: |
-          python iranamedia_build_real.py
+          python iranamedia_build_real_v2.py
           ls -lh final_5min.mp4
           ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 final_5min.mp4 || true
-          echo "Must be ~270s, NOT 9s"
 
-      - name: Commit to Pages FIRST (IG needs public URL https://iranamedia.github.io/final_5min.mp4)
+      - name: Commit to Pages FIRST
         run: |
           git config user.name "IRANA TV Bot"
           git config user.email "tv@iranamedia.github.io"
@@ -63,12 +52,11 @@ jobs:
           cp assets/irana_lion_gold_transparent.png docs/assets/ 2>/dev/null || true
           cp -r final_broadcast/* docs/final_broadcast/ 2>/dev/null || true
           cp final_5min.mp4 docs/ 2>/dev/null || true
-          cp final_5min.mp4 docs/final_5min.mp4 2>/dev/null || true
           git add docs/ final_broadcast/ 2>/dev/null || true
-          git commit -m "TV 2585 REAL 5min + clean caption (no [commands]) - $(date -u)" || true
+          git commit -m "TV 2585 REAL 5min Persian only, no black, no شاهنشاهی word - $(date -u)" || true
           git push || true
 
-      - name: Distribute (clean caption, honest report)
+      - name: Distribute
         timeout-minutes: 10
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -80,8 +68,6 @@ jobs:
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: |
-          echo "Waiting 20s for Pages to serve https://iranamedia.github.io/final_5min.mp4 for IG..."
           sleep 20
-          python iranamedia_distribute.py
+          python iranamedia_distribute.py || python iranamedia_distribute_FINAL.py
