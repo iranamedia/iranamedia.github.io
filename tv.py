@@ -20,7 +20,7 @@ OUT = os.environ.get("TV_DIR", os.path.join(HERE, "_tv"))
 BULLETIN = os.path.join(HERE, "bulletin", "latest.json")
 FONTS = os.path.join(HERE, "assets", "fonts")
 INTRO = os.path.join(HERE, "assets", "irana_intro_final.mp4")
-LOGO = os.path.join(HERE, "assets", "irana_lion_gold_transparent.png")
+LOGO = os.path.join(HERE, "assets", "irana_logo_transparent.png")   # نشان ایرانا
 PRESENTER = {"man": os.path.join(HERE, "assets", "presenter_man.jpg"),        # گوینده‌ها در استودیو
              "woman": os.path.join(HERE, "assets", "presenter_woman.jpg")}
 # نوشته‌های انگلیسی درون عکس‌ها (نام، «NEWS NOW»، ساعت ساختگی) نباید دیده شود:
