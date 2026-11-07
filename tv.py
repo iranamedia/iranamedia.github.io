@@ -32,6 +32,8 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHANNEL = os.environ.get("TELEGRAM_CHANNEL", "@IranaMediaNews")
 PEXELS = os.environ.get("PEXELS_API_KEY", "")
 PIXABAY = os.environ.get("PIXABAY_API_KEY", "")
+TALK_DIR = os.environ.get("TALK_DIR", os.path.join(HERE, "_talk"))   # چهره‌های گویا (tools/talk_shot.py)
+ON_CAM_MAX = float(os.environ.get("ON_CAM_MAX", "7"))
 BROLL_SOURCE = {"name": "Pexels"}
 
 W, H = 1920, 1080
@@ -380,6 +382,45 @@ def visuals(timeline, n_items):
     return shots
 
 
+def plan(b, audio, tl):
+    """نماها با زمان آغازشان در صدای رادیو؛ و بخش‌هایی که گوینده روی صفحه است (on_cam)."""
+    shots = visuals(json.load(open(tl, encoding="utf-8"))["segments"], len(b["items"]))
+    scale = dur(audio) / max(sum(s[1] for s in shots), 1)  # هم‌زمانی دقیق با صدای نهایی
+    out, t = [], 0.0
+    for i, (key, seconds) in enumerate(shots):
+        seconds *= scale
+        voice = key[2] if key[0] == "story" else key[1] if key[0] == "outro" else None
+        on_cam = 0.0
+        if voice and os.path.exists(PRESENTER.get(voice, "")):
+            on_cam = min(ON_CAM_MAX, seconds * 0.45) if key[0] == "story" else min(ON_CAM_MAX, seconds)
+        out.append({"i": i, "key": list(key), "start": round(t, 3), "seconds": round(seconds, 3),
+                    "voice": voice, "on_cam": round(on_cam, 3)})
+        t += seconds
+    return out
+
+
+def talk_clip(i):
+    p = os.path.join(TALK_DIR, f"talk_{i:02d}.mp4")
+    return p if os.path.exists(p) and os.path.getsize(p) > 10_000 else None
+
+
+def clip_talking(video, png, seconds, out):
+    """گوینده‌ی گویا (SadTalker) با نوار تیتر روی آن؛ اندازه‌ی زمان درست به اندازه‌ی گفتار."""
+    ff("-i", video, "-framerate", "25", "-loop", "1", "-i", png, "-t", f"{seconds:.3f}", "-filter_complex",
+       f"[0:v]fps=25,scale={W}:{H},setsar=1,tpad=stop_mode=clone:stop_duration=2[v];[v][1:v]overlay=0:0",
+       *ENC, "-an", out)
+
+
+def presenter_clip(i, photo, png, seconds, out):
+    talk = talk_clip(i)
+    if talk:
+        try:
+            clip_talking(talk, png, seconds, out); print(f"shot {i}: گوینده‌ی گویا", flush=True); return
+        except subprocess.CalledProcessError:
+            pass
+    clip_presenter(photo, png, seconds, out)
+
+
 def build():
     b = json.load(open(BULLETIN, encoding="utf-8"))
     audio, tl = os.path.join(SITE, "latest.mp3"), os.path.join(SITE, "timeline.json")
@@ -387,12 +428,9 @@ def build():
         print("ساعت بی‌گفتار یا صدای رادیو آماده نیست؛ تلویزیون ساخته نمی‌شود"); return None
     os.makedirs(OUT, exist_ok=True)
     fonts()
-    shots = visuals(json.load(open(tl, encoding="utf-8"))["segments"], len(b["items"]))
-    total = dur(audio)
-    scale = total / max(sum(s[1] for s in shots), 1)        # هم‌زمانی دقیق با صدای نهایی
     clips = []
-    for i, (key, seconds) in enumerate(shots):
-        seconds *= scale
+    for sh in plan(b, audio, tl):
+        i, key, seconds, on_cam = sh["i"], tuple(sh["key"]), sh["seconds"], sh["on_cam"]
         out, png = os.path.join(OUT, f"shot_{i:02d}.mp4"), os.path.join(OUT, f"shot_{i:02d}.png")
         if key[0] == "title":
             slide_title(b, png); clip_still(png, seconds, out)
@@ -408,7 +446,12 @@ def build():
             photo = studio_photo(key[1])
             if photo:
                 lower_third(b, png, "تازه‌ترین رویدادهای ایران · شبانروزی، سر هر ساعت", "رسانه ایرانا")
-                clip_presenter(photo, png, seconds, out)
+                if on_cam < seconds - 0.05:                 # گوینده‌ی گویا، سپس عکس با حرکت آرام
+                    presenter_clip(i, photo, png, on_cam, out); clips.append(out)
+                    out = os.path.join(OUT, f"shot_{i:02d}b.mp4")
+                    clip_presenter(photo, png, seconds - on_cam, out)
+                else:
+                    presenter_clip(i, photo, png, seconds, out)
             else:
                 slide_end(b, png); clip_still(png, seconds, out)
         else:
@@ -416,11 +459,11 @@ def build():
             photo = studio_photo(voice)
             count = f"خبر {str(n + 1).translate(FA)} از {str(min(len(b['items']), 5)).translate(FA)}"
             bv = broll(b["items"][n], n)
-            # گوینده خبر را آغاز می‌کند، سپس فیلم نمادین؛ بی‌فیلم، گوینده تا پایان خبر
-            on_cam = (min(7.0, seconds * 0.45) if bv else seconds) if photo else 0
+            # گوینده خبر را آغاز می‌کند (گویا، اگر ساخته شده)، سپس فیلم نمادین یا قاب خبر
+            on_cam = on_cam if photo else 0
             if on_cam:
                 lower_third(b, png, b["items"][n]["title"], count)
-                clip_presenter(photo, png, on_cam, out)
+                presenter_clip(i, photo, png, on_cam, out)
                 clips.append(out)
                 out, png = os.path.join(OUT, f"shot_{i:02d}b.mp4"), os.path.join(OUT, f"shot_{i:02d}b.png")
             rest = seconds - on_cam
@@ -490,6 +533,14 @@ def send(path, cap):
 
 
 if __name__ == "__main__":
+    if "--plan" in sys.argv:                            # بخش‌های گوینده‌دار برای ساختن هم‌زمان
+        bb = json.load(open(BULLETIN, encoding="utf-8"))
+        audio, tl = os.path.join(SITE, "latest.mp3"), os.path.join(SITE, "timeline.json")
+        shots = plan(bb, audio, tl) if os.path.exists(audio) and os.path.exists(tl) else []
+        talk = [s for s in shots if s["on_cam"] > 0.5]
+        json.dump(talk, open(os.path.join(SITE, "talk_plan.json"), "w"), ensure_ascii=False)
+        print(json.dumps([s["i"] for s in talk]))
+        sys.exit(0)
     if "--send-only" in sys.argv:                       # سر ساعت: فرستادن ویدیوی ساخته‌شده
         wide = os.path.join(OUT, "irana-tv.mp4")
         if not os.path.exists(wide): print("ویدیوی تلویزیون نیست"); sys.exit(0)

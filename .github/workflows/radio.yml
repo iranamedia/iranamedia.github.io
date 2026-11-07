@@ -1,7 +1,9 @@
 name: رسانه ایرانا — رادیو، تلویزیون و تارنما
 # هر بار که خبرنامه (bulletin/latest.json) به‌روز شود:
 #   هر ساعت: متن خبرنامه در تلگرام + تارنمای ایرانا
-#   ساعت ۸ و ۲۰ تهران: رادیو با دو گوینده + تلویزیون ایرانا در تلگرام، یوتیوب، فیسبوک و اینستاگرام
+#   ساعت ۸ و ۲۰ تهران: رادیو با دو گوینده + تلویزیون ایرانا با گوینده‌های گویا
+#   در تلگرام، یوتیوب، فیسبوک و اینستاگرام
+# گام‌ها: ساختن رادیو ← گوینده‌های گویا (هر بخش در رایانه‌ای جدا، هم‌زمان) ← تلویزیون و انتشار.
 # همه‌چیز پیش‌تر ساخته می‌شود و درست سر ساعت ایران منتشر می‌شود (tools/wait_hour.py).
 on:
   push:
@@ -12,31 +14,133 @@ on:
         description: "رادیو و تلویزیون را همین حالا بساز (بیرون از ساعت‌های گفتاری)"
         type: boolean
         default: false
+      dry:
+        description: "آزمایشی: همه‌چیز ساخته شود ولی هیچ‌جا منتشر نشود (ویدیو در Artifacts)"
+        type: boolean
+        default: false
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 concurrency:
-  group: radio
+  group: ${{ inputs.dry && 'radio-dry' || 'radio' }}
   cancel-in-progress: false
+env:
+  FFMPEG_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
 jobs:
-  broadcast:
+  radio:
+    name: ساختن رادیو
     runs-on: ubuntu-latest
-    timeout-minutes: 75
-    environment:
-      name: github-pages
+    timeout-minutes: 20
+    outputs:
+      talk: ${{ steps.plan.outputs.talk }}
     steps:
       - uses: actions/checkout@v5
       - name: رویدادهای شهریار ایران در جای نخست
         run: python3 tools/pin_prince.py bulletin/latest.json bulletin/prince.json
       - name: واژه‌های ایرانا (آبراه پارس، اروندرود، نفت ایران …)
         run: python3 tools/terms.py bulletin/latest.json
-      - name: ابزارها (ffmpeg از GitHub، قلم وزیرمتن)
+      - name: ffmpeg
+        timeout-minutes: 5
+        run: |
+          curl -sSfL --retry 3 -o ff.tar.xz "$FFMPEG_URL"
+          tar -xf ff.tar.xz && sudo cp ffmpeg-master-latest-linux64-gpl/bin/ff* /usr/local/bin/ && rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
+      - name: ساختن رادیو (دو گوینده)
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          VOICE_ID: ${{ secrets.BAKTASH_VOICE_ID || 'g8OwRTuNvpJKpiVarLb6' }}
+          VOICE_ID_2: ${{ secrets.CHARLOTTE_VOICE_ID || 'XB0fDUnXU5powFXDhCwa' }}
+          SAVE_DIR: _site
+          FORCE_VOICE: ${{ (inputs.voice || inputs.dry) && '1' || '' }}
+        run: python3 radio.py --build
+      - name: بخش‌های گوینده‌دار
+        id: plan
+        env:
+          SAVE_DIR: _site
+        run: |
+          pip install -q --break-system-packages pillow
+          echo "talk=$(python3 tv.py --plan | tail -1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          include-hidden-files: true
+          retention-days: 1
+          path: |
+            bulletin/latest.json
+            _site
+
+  talk:
+    name: گوینده‌ی گویا
+    needs: radio
+    if: needs.radio.outputs.talk != '' && needs.radio.outputs.talk != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        shot: ${{ fromJSON(needs.radio.outputs.talk) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: ffmpeg
+        run: |
+          curl -sSfL --retry 3 -o ff.tar.xz "$FFMPEG_URL"
+          tar -xf ff.tar.xz && sudo cp ffmpeg-master-latest-linux64-gpl/bin/ff* /usr/local/bin/ && rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            _sad
+          key: sadtalker-v1
+      - name: SadTalker
+        run: |
+          [ -d _sad/.git ] || git clone --depth 1 https://github.com/OpenTalker/SadTalker _sad
+          pip install -q torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cpu
+          grep -viE "^(gradio|torch|torchvision|torchaudio)" _sad/requirements.txt > _sad/req.txt
+          pip install -q -r _sad/req.txt "pillow>=9.5,<11"
+          [ -f _sad/checkpoints/SadTalker_V0.0.2_256.safetensors ] || (cd _sad && bash scripts/download_models.sh)
+      - name: گویا کردن بخش ${{ matrix.shot }}
+        env:
+          SAVE_DIR: _site
+          TALK_DIR: _talk
+        run: python tools/talk_shot.py ${{ matrix.shot }} _sad
+      - uses: actions/upload-artifact@v4
+        with:
+          name: talk-${{ matrix.shot }}
+          path: _talk/*.mp4
+          retention-days: 1
+
+  publish:
+    name: تلویزیون و انتشار
+    needs: [radio, talk]
+    if: always() && needs.radio.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: talk-*
+          merge-multiple: true
+          path: _talk
+      - name: ابزارها (ffmpeg، قلم وزیرمتن)
         timeout-minutes: 6
         run: |
-          curl -sSfL --retry 3 -o ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          curl -sSfL --retry 3 -o ff.tar.xz "$FFMPEG_URL"
           tar -xf ff.tar.xz && sudo cp ffmpeg-master-latest-linux64-gpl/bin/ff* /usr/local/bin/ && rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
-          ffmpeg -version | head -1
           pip install -q --break-system-packages pillow
           if ! python3 -c "from PIL import features; assert features.check('raqm')" 2>/dev/null; then
             timeout 150 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq || true
@@ -47,62 +151,53 @@ jobs:
           for w in Black Bold Medium; do
             curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-$w.ttf || curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@master/fonts/ttf/Vazirmatn-$w.ttf || true
           done
-      - name: ساختن رادیو (دو گوینده)
-        id: radio
-        env:
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          VOICE_ID: ${{ secrets.BAKTASH_VOICE_ID || 'g8OwRTuNvpJKpiVarLb6' }}
-          VOICE_ID_2: ${{ secrets.CHARLOTTE_VOICE_ID || 'XB0fDUnXU5powFXDhCwa' }}
-          SAVE_DIR: _site
-          FORCE_VOICE: ${{ inputs.voice && '1' || '' }}
-        run: python3 radio.py --build
+          ls -la _talk 2>/dev/null || echo "گوینده‌ی گویا نیست؛ عکس با حرکت آرام"
       - name: ساختن تلویزیون ایرانا
         id: tv
-        if: steps.radio.outcome == 'success' && hashFiles('_site/timeline.json') != ''
+        if: hashFiles('_site/timeline.json') != ''
         continue-on-error: true
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           SAVE_DIR: _site
+          TALK_DIR: _talk
         run: python3 tv.py --no-send
       - name: آماده‌سازی تارنما
-        if: always()
         run: |
           mkdir -p _site && cp -r site/. _site/ && cp bulletin/latest.json _site/latest.json
           python3 tools/json2page.py bulletin/latest.json _site/index.html _site/news.html
           python3 tools/inject_support.py _site || true
-          rm -f _site/timeline.json
+          rm -f _site/timeline.json _site/talk_plan.json
       - uses: actions/configure-pages@v5
-        if: always()
+        if: ${{ !inputs.dry }}
         continue-on-error: true
       - uses: actions/upload-pages-artifact@v3
-        if: always()
+        if: ${{ !inputs.dry }}
         with:
           path: _site
       - name: درنگ تا سر ساعت ایران
-        if: steps.radio.outcome == 'success' && !inputs.voice
+        if: ${{ !inputs.voice && !inputs.dry }}
         run: python3 tools/wait_hour.py bulletin/latest.json
       - name: انتشار تارنما
-        if: always()
+        if: ${{ !inputs.dry }}
         continue-on-error: true
         uses: actions/deploy-pages@v4
       - name: تلگرام (متن یا رادیو)
-        if: steps.radio.outcome == 'success'
+        if: ${{ !inputs.dry }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL: "@IranaMediaNews"
           SAVE_DIR: _site
         run: python3 radio.py --send
       - name: تلگرام (تلویزیون)
-        if: steps.tv.outcome == 'success'
+        if: steps.tv.outcome == 'success' && !inputs.dry
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL: "@IranaMediaNews"
         run: python3 tv.py --send-only
       - name: یوتیوب، فیسبوک و اینستاگرام
-        if: steps.radio.outcome == 'success'
+        if: ${{ !inputs.dry }}
         env:
           META_PAGE_ID: ${{ secrets.META_PAGE_ID || secrets.FB_PAGE_ID || '150299551406' }}
           META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
@@ -121,3 +216,12 @@ jobs:
           name: irana-tv
           path: _tv/irana-tv*.mp4
           retention-days: 3
+      - name: آزمایشی — نگه‌داری ویدیو در شاخه‌ی talking-test
+        if: inputs.dry && steps.tv.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir out && cp _tv/irana-tv.mp4 out/ && ls _talk > out/talk_clips.txt 2>/dev/null || true
+          cd out && git init -q && git checkout -q -b talking-test
+          git add -A && git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "تلویزیون ایرانا آزمایشی ${{ github.run_id }}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}" talking-test
