@@ -303,28 +303,43 @@ def hosted_url(page, tok, mp4):
     raise RuntimeError("hosted video url not ready")
 
 
+def _ig_wait(cid, tok):
+    for _ in range(90):                               # تا ۱۵ دقیقه برای پردازش
+        s = jcall("GET", f"{GRAPH}/{cid}", params={"fields": "status_code,status", "access_token": tok})
+        if s.get("status_code") == "FINISHED": return
+        if s.get("status_code") in ("ERROR", "EXPIRED"): raise RuntimeError(f"Instagram processing: {s}")
+        time.sleep(10)
+    raise RuntimeError("Instagram processing timed out")
+
+
+def _ig_resumable(ig, tok, mp4, params):
+    """بارگذاری مستقیم ویدیو به اینستاگرام (rupload)."""
+    p = {k: v for k, v in params.items() if k != "video_url"}
+    p["upload_type"] = "resumable"
+    c = jcall("POST", f"{GRAPH}/{ig}/media", params=p)
+    cid, uri = c["id"], c.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{GRAPH.rsplit('/', 1)[1]}/{c['id']}"
+    data = open(mp4, "rb").read()
+    http("POST", uri, data, {"Authorization": f"OAuth {tok}", "offset": "0", "file_size": str(len(data))})
+    _ig_wait(cid, tok)
+    return cid
+
+
 def instagram(b, mp4):
     ig, tok = os.environ.get("IG_USER_ID"), os.environ.get("META_PAGE_TOKEN")
     page = os.environ.get("META_PAGE_ID")
     if not (ig and tok): return "skip"
     params = {"media_type": "REELS", "share_to_feed": "true", "caption": caption(b, 2000), "access_token": tok}
-    if page:                                          # روش نخست: video_url (پایدارتر از بارگذاری مستقیم)
-        params["video_url"] = hosted_url(page, tok, mp4)
-        c = jcall("POST", f"{GRAPH}/{ig}/media", params=params)
-        cid = c["id"]
-    else:
-        params["upload_type"] = "resumable"
-        c = jcall("POST", f"{GRAPH}/{ig}/media", params=params)
-        cid, uri = c["id"], c.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{GRAPH.rsplit('/', 1)[1]}/{c['id']}"
-        data = open(mp4, "rb").read()
-        http("POST", uri, data, {"Authorization": f"OAuth {tok}", "offset": "0", "file_size": str(len(data))})
-    for _ in range(90):                               # تا ۱۵ دقیقه برای پردازش
-        s = jcall("GET", f"{GRAPH}/{cid}", params={"fields": "status_code,status", "access_token": tok})
-        if s.get("status_code") == "FINISHED": break
-        if s.get("status_code") in ("ERROR", "EXPIRED"): raise RuntimeError(f"Instagram processing: {s}")
-        time.sleep(10)
-    else:
-        raise RuntimeError("Instagram processing timed out")
+    cid = None
+    if page:                                          # روش نخست: video_url از ویدیوی فیسبوک
+        try:
+            params["video_url"] = hosted_url(page, tok, mp4)
+            cid = jcall("POST", f"{GRAPH}/{ig}/media", params=params)["id"]
+            _ig_wait(cid, tok)
+        except Exception as e:
+            print(f"Instagram video_url failed ({str(e)[:200]}); trying direct upload", flush=True)
+            cid = None
+    if cid is None:                                   # روش دوم: بارگذاری مستقیم
+        cid = _ig_resumable(ig, tok, mp4, params)
     r = jcall("POST", f"{GRAPH}/{ig}/media_publish", params={"creation_id": cid, "access_token": tok})
     return f"reel {r.get('id')}"
 
