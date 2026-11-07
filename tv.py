@@ -249,29 +249,28 @@ def slide_story(b, n, path, over_video=False):
 
 # ---------- فیلم نمادین آزاد (Pixabay یا Pexels) ----------
 # فقط تصویرهای کلی و نمادین؛ هرگز فیلمی که با خودِ رویداد اشتباه گرفته شود.
+# فقط وقتی فیلمی آشکارا هم‌موضوع خبر است؛ اگر نه، بی‌فیلم (گوینده و قاب تیتر).
+# هر موضوع در هر برنامه یک بار؛ برچسب‌های فیلم باید با موضوع بخواند.
 TOPICS = [
-    (("نفتکش", "هرمز", "کشتی", "دریا", "بندر"), "oil tanker sea"),
-    (("نفت", "بنزین", "انرژی", "گاز", "پالایشگاه"), "oil refinery"),
-    (("هسته", "اورانیوم", "آژانس", "غنی‌سازی"), "nuclear power plant"),
-    (("اعدام", "دادگاه", "قضایی", "حکم"), "gavel court"),
-    (("زندان", "حبس", "بازداشت", "دستگیر"), "prison bars"),
-    (("تحریم", "ریال", "تورم", "بازار", "اقتصاد", "دلار", "بانک"), "stock market screen"),
-    (("ملل متحد", "سازمان ملل", "شورای امنیت", "گفت‌وگو", "مذاکره", "دیپلمات"), "united nations"),
-    (("موشک", "پهپاد", "حمله", "جنگ", "نظامی"), "night city skyline"),
-    (("پهلوی", "شهریار"), "iran flag"),
+    (("نفتکش", "کشتی", "تنگه هرمز", "بندر"), "oil tanker ship", ("tanker", "ship", "vessel", "cargo", "oil")),
+    (("پالایشگاه", "نفت", "بنزین", "سوخت"), "oil refinery", ("refinery", "oil", "petroleum", "industry", "pipeline")),
+    (("هسته‌ای", "اتمی", "اورانیوم", "غنی‌سازی", "نیروگاه"), "nuclear power plant", ("nuclear", "reactor", "power plant", "cooling tower")),
+    (("دادگاه", "حکم", "محکوم", "قوه قضاییه", "مراجع قضایی"), "judge gavel court", ("gavel", "court", "judge", "law", "justice")),
+    (("زندان", "حبس", "بازداشت", "دستگیر"), "prison bars", ("prison", "jail", "bars", "handcuffs", "cell")),
+    (("ریال", "تورم", "بورس", "دلار", "اقتصاد", "گرانی"), "stock market money", ("stock", "market", "money", "currency", "finance", "economy")),
 ]
-DEFAULT_TOPIC = "Tehran city"
 _used = set()
+_topics_used = set()
 
 
 def topic(it):
+    """موضوع فیلم نمادین از تیتر خبر؛ None یعنی بی‌فیلم."""
     if PRINCE.search(it["title"]):
         return None                                   # خبر شهریار ایران: بی‌فیلم نمادین
-    t = it["title"] + " " + it.get("body", "")[:200]
-    for keys, q in TOPICS:
-        if any(k in t for k in keys):
-            return q
-    return DEFAULT_TOPIC
+    for keys, q, tags in TOPICS:
+        if any(k in it["title"] for k in keys):
+            return (q, tags)
+    return None
 
 
 def _save(url, n):
@@ -282,7 +281,7 @@ def _save(url, n):
     return out if os.path.getsize(out) >= 100_000 else None
 
 
-def pixabay(q, n):
+def pixabay(q, n, tags=()):
     url = "https://pixabay.com/api/videos/?" + urllib.parse.urlencode(
         {"key": PIXABAY, "q": q, "per_page": 20, "safesearch": "true"})
     with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "IranaMedia/1.0"}), timeout=25) as r:
@@ -290,6 +289,8 @@ def pixabay(q, n):
     for v in hits:
         if ("pb", v["id"]) in _used or v.get("duration", 0) < 5:
             continue
+        if tags and not any(t in v.get("tags", "").lower() for t in tags):
+            continue                                  # برچسب‌ها با موضوع نمی‌خواند
         files = [f for f in v.get("videos", {}).values() if f.get("url") and 1280 <= (f.get("width") or 0) <= 1920
                  and (f.get("width") or 0) > (f.get("height") or 0)]
         if not files:
@@ -297,12 +298,12 @@ def pixabay(q, n):
         out = _save(max(files, key=lambda x: x["width"])["url"], n)
         if out:
             _used.add(("pb", v["id"])); BROLL_SOURCE["name"] = "Pixabay"
-            print(f"b-roll {n}: '{q}' pixabay {v['id']}", flush=True)
+            print(f"b-roll {n}: '{q}' pixabay {v['id']} [{v.get('tags', '')}]", flush=True)
             return out
     return None
 
 
-def pexels(q, n):
+def pexels(q, n, tags=()):
     url = "https://api.pexels.com/videos/search?" + urllib.parse.urlencode(
         {"query": q, "orientation": "landscape", "size": "medium", "per_page": 15})
     with urllib.request.urlopen(urllib.request.Request(url, headers={"Authorization": PEXELS}), timeout=25) as r:
@@ -323,16 +324,17 @@ def pexels(q, n):
 
 
 def broll(it, n):
-    finders = ([pixabay] if PIXABAY else []) + ([pexels] if PEXELS else [])
-    if topic(it) is None:
+    tp = topic(it)
+    if tp is None or tp[0] in _topics_used:          # بی‌ربط یا تکراری: بی‌فیلم
         return None
-    for q in (topic(it), DEFAULT_TOPIC):
-        for find in finders:
-            try:
-                out = find(q, n)
-                if out: return out
-            except Exception as e:
-                print(f"{find.__name__} '{q}' failed: {e}", flush=True)
+    q, tags = tp
+    for find in ([pixabay] if PIXABAY else []) + ([pexels] if PEXELS else []):
+        try:
+            out = find(q, n, tags)
+            if out:
+                _topics_used.add(q); return out
+        except Exception as e:
+            print(f"{find.__name__} '{q}' failed: {e}", flush=True)
     return None
 
 
