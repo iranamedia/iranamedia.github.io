@@ -34,6 +34,7 @@ PEXELS = os.environ.get("PEXELS_API_KEY", "")
 PIXABAY = os.environ.get("PIXABAY_API_KEY", "")
 TALK_DIR = os.environ.get("TALK_DIR", os.path.join(HERE, "_talk"))   # چهره‌های گویا (tools/talk_shot.py)
 ON_CAM_MAX = float(os.environ.get("ON_CAM_MAX", "7"))
+TWO_SHOT = 4.0          # پس از آرم آغاز: نمای استودیو با هر دو گوینده (ثانیه)
 BROLL_SOURCE = {"name": "Pexels"}
 
 W, H = 1920, 1080
@@ -389,13 +390,37 @@ def plan(b, audio, tl):
     out, t = [], 0.0
     for i, (key, seconds) in enumerate(shots):
         seconds *= scale
-        voice = key[2] if key[0] == "story" else key[1] if key[0] == "outro" else None
-        on_cam = 0.0
+        voice = key[2] if key[0] == "story" else key[1] if key[0] == "outro" else "man" if key[0] == "title" else None
+        on_cam, lead = 0.0, 0.0
         if voice and os.path.exists(PRESENTER.get(voice, "")):
-            on_cam = min(ON_CAM_MAX, seconds * 0.45) if key[0] == "story" else min(ON_CAM_MAX, seconds)
+            if key[0] == "story":
+                on_cam = min(ON_CAM_MAX, seconds * 0.45)
+            elif key[0] == "outro":
+                on_cam = min(ON_CAM_MAX, seconds)
+            elif all(os.path.exists(p) for p in PRESENTER.values()):   # سرآغاز: دو گوینده، سپس بکتاش
+                lead = min(TWO_SHOT, seconds * 0.3)
+                on_cam = max(0.0, min(ON_CAM_MAX, seconds - lead - 3))
         out.append({"i": i, "key": list(key), "start": round(t, 3), "seconds": round(seconds, 3),
-                    "voice": voice, "on_cam": round(on_cam, 3)})
+                    "voice": voice, "lead": round(lead, 3), "on_cam": round(on_cam, 3),
+                    "talk_start": round(t + lead, 3)})
         t += seconds
+    return out
+
+
+def studio_two():
+    """نمای استودیو با هر دو گوینده: بکتاش و شارلوت کنار هم."""
+    out = os.path.join(OUT, "studio_two.png")
+    if os.path.exists(out):
+        return out
+    man, woman = studio_photo("man"), studio_photo("woman")
+    if not (man and woman):
+        return None
+    img = Image.new("RGB", (W, H), BG)
+    for x, ph in ((0, man), (W // 2, woman)):
+        im = Image.open(ph).convert("RGB")
+        img.paste(im.crop(((W - W // 2) // 2, 0, (W - W // 2) // 2 + W // 2, H)), (x, 0))
+    ImageDraw.Draw(img).rectangle([W // 2 - 3, 0, W // 2 + 3, H], fill=GOLD)
+    img.save(out)
     return out
 
 
@@ -433,7 +458,19 @@ def build():
         i, key, seconds, on_cam = sh["i"], tuple(sh["key"]), sh["seconds"], sh["on_cam"]
         out, png = os.path.join(OUT, f"shot_{i:02d}.mp4"), os.path.join(OUT, f"shot_{i:02d}.png")
         if key[0] == "title":
-            slide_title(b, png); clip_still(png, seconds, out)
+            lead, two, man = sh.get("lead", 0), studio_two(), studio_photo("man")
+            if lead and two and man:                       # دو گوینده در استودیو، سپس بکتاش تیترها را می‌خواند
+                lt = os.path.join(OUT, "lt_head.png")
+                lower_third(b, lt, "تازه‌ترین رویدادهای ایران", "رسانه ایرانا")
+                clip_presenter(two, lt, lead, out); clips.append(out)
+                if on_cam:
+                    out = os.path.join(OUT, f"shot_{i:02d}m.mp4")
+                    lower_third(b, lt, b["items"][0]["title"] if b["items"] else "تیترهای این بخش", "تیترهای این بخش")
+                    presenter_clip(i, man, lt, on_cam, out); clips.append(out)
+                out = os.path.join(OUT, f"shot_{i:02d}t.mp4")
+                slide_title(b, png); clip_still(png, seconds - lead - on_cam, out)
+            else:
+                slide_title(b, png); clip_still(png, seconds, out)
         elif key[0] == "end":
             if os.path.exists(AD_VIDEO):
                 try:
@@ -491,10 +528,17 @@ def build():
            f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0x0A1530,setsar=1", *ENC,
            "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2", intro)
         parts.insert(0, intro)
-    lst2 = os.path.join(OUT, "parts.txt")
-    open(lst2, "w").write("".join(f"file '{p}'\n" for p in parts))
     wide = os.path.join(OUT, "irana-tv.mp4")
-    ff("-f", "concat", "-safe", "0", "-i", lst2, *ENC, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", wide)
+    if len(parts) == 2:                                    # آرم آغاز آرام در استودیو محو می‌شود
+        off = max(dur(parts[0]) - 1.2, 0.5)
+        ff("-i", parts[0], "-i", parts[1], "-filter_complex",
+           f"[0:v]settb=AVTB,fps=25[a];[1:v]settb=AVTB,fps=25[b];[a][b]xfade=transition=fade:duration=1.2:offset={off:.2f}[v];"
+           f"[0:a][1:a]acrossfade=d=1.2[au]", "-map", "[v]", "-map", "[au]",
+           *ENC, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", wide)
+    else:
+        lst2 = os.path.join(OUT, "parts.txt")
+        open(lst2, "w").write("".join(f"file '{p}'\n" for p in parts))
+        ff("-f", "concat", "-safe", "0", "-i", lst2, *ENC, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", wide)
     tall = os.path.join(OUT, "irana-tv-tall.mp4")
     ff("-i", wide, "-filter_complex",
        "[0:v]split[a][b];[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=24:2,"
