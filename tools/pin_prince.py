@@ -30,6 +30,27 @@ def main(path, prince_path):
     b = json.load(open(path, encoding="utf-8"))
     items = b.get("items", [])
     mine = [it for it in items if is_prince(it)]
+    saved = json.load(open(prince_path, encoding="utf-8")) if os.path.exists(prince_path) else {}
+    if saved.get("pin_until") and saved.get("item", {}).get("title"):
+        try:
+            until = datetime.datetime.fromisoformat(saved["pin_until"].replace("Z", "+00:00"))
+        except ValueError:
+            until = None
+        if until and datetime.datetime.now(datetime.timezone.utc) < until:
+            # رویداد برگزیده‌ی رسانه: تا pin_until در همه‌ی بخش‌ها نخست، حتی پیش از "lead"
+            pinned = saved["item"]
+            others = [it for it in items if it.get("title") != pinned["title"]]
+            src = saved.get("source")
+            if src and src.get("url") and all(x.get("url") != src["url"] for x in b.get("sources", [])):
+                b.setdefault("sources", []).insert(0, src)
+            for it in others:
+                it.pop("lead", None)
+            m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
+            cap = 5 if m and int(m.group(1)) in (8, 20) else 10
+            b["items"] = ([pinned] + [it for it in others if is_prince(it)] + [it for it in others if not is_prince(it)])[:cap]
+            json.dump(b, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+            print("رویداد برگزیده تا", saved["pin_until"], "نخست:", pinned["title"])
+            return
     if not mine and os.path.exists(prince_path):
         saved = json.load(open(prince_path, encoding="utf-8"))
         pinned, src, age = saved.get("item"), saved.get("source"), age_hours(saved)
