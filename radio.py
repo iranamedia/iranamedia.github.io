@@ -276,9 +276,9 @@ def caption(b):
         body = lead.get("body", "")
         body = body if len(body) <= 450 else body[:450].rsplit(" ", 1)[0] + "…"
         head = f"🎙 {lead['title']}\n\n{body}\n\n{b['stamp']}\n\n"
-        items = b["items"][1:]
+        items = b["items"][1:HEADLINES]                # روی‌هم بیش از سه تیتر نه
     else:
-        head, items = f"🎙 {b['stamp']}\n\n", b["items"]
+        head, items = f"🎙 {b['stamp']}\n\n", b["items"][:HEADLINES]
     lines, size = [], len(head) + 40
     for it in items:
         l = "▪️ " + it["title"]

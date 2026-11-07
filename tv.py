@@ -570,9 +570,9 @@ def caption(b):
         body = first.get("body", "")
         body = body if len(body) <= 450 else body[:450].rsplit(" ", 1)[0] + "…"
         lines = [f"📺 {first['title']}", "", body, "", f"تلویزیون ایرانا · {b['stamp']}", ""]
-        rest = b["items"][1:5]
+        rest = b["items"][1:3]                          # روی‌هم بیش از سه تیتر نه
     else:
-        lines, rest = [f"📺 تلویزیون ایرانا · {b['stamp']}", ""], b["items"][:5]
+        lines, rest = [f"📺 تلویزیون ایرانا · {b['stamp']}", ""], b["items"][:3]
     for it in rest:
         lines.append("▪️ " + it["title"])
     lines += ["", CHANNEL]

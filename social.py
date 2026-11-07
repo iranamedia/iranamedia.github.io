@@ -231,9 +231,9 @@ def caption(b, limit=2000, tags=True):
     lead = prince_lead(b)
     if lead:                                           # زیرنویس: تیتر و خبر شهریار ایران
         head = f"🎙 {lead['title']}\n\n{lead.get('body', '')}\n\nرسانه ایرانا · {b['stamp']}\n\n"
-        items = b["items"][1:]
+        items = b["items"][1:3]                         # روی‌هم بیش از سه تیتر نه
     else:
-        head, items = f"🎙 رسانه ایرانا\n{b['stamp']}\n\n", b["items"]
+        head, items = f"🎙 رسانه ایرانا\n{b['stamp']}\n\n", b["items"][:3]
     lines, size = [], len(head) + len(tail)
     for it in items:
         l = "▪️ " + it["title"]
