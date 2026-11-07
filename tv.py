@@ -121,14 +121,22 @@ def frame(b, transparent=False):
 def slide_title(b, path):
     img, d = frame(b)
     if os.path.exists(LOGO):
-        lg = Image.open(LOGO).convert("RGBA").resize((300, 300), Image.LANCZOS)
-        img.alpha_composite(lg, ((W - 300) // 2, 165))
-    centered(d, 480, "تیترهای این بخش", F["meta"], GOLD)
-    y = 560
-    for it in b["items"][:3]:
-        for line in wrap(d, "◆ " + it["title"], F["list"], W - 360)[:2]:
-            centered(d, y, line, F["list"], WHITE); y += 70
-        y += 18
+        lg = Image.open(LOGO).convert("RGBA").resize((220, 220), Image.LANCZOS)
+        img.alpha_composite(lg, ((W - 220) // 2, 160))
+    centered(d, 395, "تیترهای این بخش", F["meta"], GOLD)
+    bottom = H - 125                                   # بالای نوار پایین
+    for size in (50, 44, 38):                         # تیترها هرگز روی نوار پایین نمی‌روند
+        f = font("Bold", size)
+        blocks = [wrap(d, "◆ " + it["title"], f, W - 360)[:2] for it in b["items"][:3]]
+        lh, gap = int(size * 1.4), int(size * 0.4)
+        if 465 + sum(len(x) * lh + gap for x in blocks) <= bottom:
+            break
+    y = 465
+    for lines in blocks:
+        for line in lines:
+            if y + lh > bottom: break
+            centered(d, y, line, f, WHITE); y += lh
+        y += gap
     img.convert("RGB").save(path)
 
 
@@ -256,6 +264,8 @@ _used = set()
 
 
 def topic(it):
+    if re.search(r"شهریار\s*ایران|رضا\s*پهلوی", it["title"]):
+        return None                                   # خبر شهریار ایران: بی‌فیلم نمادین
     t = it["title"] + " " + it.get("body", "")[:200]
     for keys, q in TOPICS:
         if any(k in t for k in keys):
@@ -313,6 +323,8 @@ def pexels(q, n):
 
 def broll(it, n):
     finders = ([pixabay] if PIXABAY else []) + ([pexels] if PEXELS else [])
+    if topic(it) is None:
+        return None
     for q in (topic(it), DEFAULT_TOPIC):
         for find in finders:
             try:
