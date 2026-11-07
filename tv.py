@@ -218,7 +218,7 @@ def lower_third(b, path, title, label):
     img.save(path)
 
 
-def slide_story(b, n, path, over_video=False):
+def slide_story(b, n, path, over_video=False, credit=None):
     it, total = b["items"][n], min(len(b["items"]), 5)
     img, d = frame(b, transparent=over_video)
     count = f"خبر {str(n + 1).translate(FA)} از {str(total).translate(FA)}"
@@ -232,7 +232,7 @@ def slide_story(b, n, path, over_video=False):
         ld.rounded_rectangle([36, 150, 470, 206], radius=14, fill=(0, 0, 0, 150))
         img.alpha_composite(layer)
         d = ImageDraw.Draw(img)
-        at_left(d, 56, 158, "تصویر نمادین · " + BROLL_SOURCE["name"], F["small"], MIST)
+        at_left(d, 56, 158, credit or ("تصویر نمادین · " + BROLL_SOURCE["name"]), F["small"], MIST)
         at_right(d, W - 120, top + 18, count, F["small"], GOLD)
         y = top + 72
         for line in lines:
@@ -439,6 +439,33 @@ def studio_two():
     return out
 
 
+PRINCE_DIR = os.path.join(HERE, "assets", "prince")   # عکس‌های شهریار ایران که خود رسانه می‌گذارد
+
+
+def prince_photo():
+    """تازه‌ترین عکس پوشه‌ی assets/prince (به ترتیب نام؛ نام را با تاریخ آغاز کنید)، در قاب ۱۶:۹."""
+    if not os.path.isdir(PRINCE_DIR):
+        return None
+    pics = sorted(f for f in os.listdir(PRINCE_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png", ".webp")))
+    if not pics:
+        return None
+    out = os.path.join(OUT, "prince_photo.png")
+    if os.path.exists(out):
+        return out
+    from PIL import ImageFilter
+    im = Image.open(os.path.join(PRINCE_DIR, pics[-1])).convert("RGB")
+    bg = im.copy()
+    scale = max(W / bg.width, H / bg.height)
+    bg = bg.resize((int(bg.width * scale) + 1, int(bg.height * scale) + 1)).crop((0, 0, W, H))
+    bg = bg.filter(ImageFilter.GaussianBlur(30)).point(lambda v: int(v * 0.55))
+    scale = min(W / im.width, H / im.height)
+    fg = im.resize((int(im.width * scale), int(im.height * scale)), Image.LANCZOS)
+    bg.paste(fg, ((W - fg.width) // 2, (H - fg.height) // 2))
+    bg.save(out)
+    print(f"عکس شهریار ایران: {pics[-1]}", flush=True)
+    return out
+
+
 def talk_clip(i):
     p = os.path.join(TALK_DIR, f"talk_{i:02d}.mp4")
     return p if os.path.exists(p) and os.path.getsize(p) > 10_000 else None
@@ -526,7 +553,11 @@ def build():
                         clip_over(bv, png, rest, out)
                     except subprocess.CalledProcessError:
                         bv = None
-                if not bv:
+                pp = prince_photo() if not bv and PRINCE.search(b["items"][n]["title"]) else None
+                if pp:                                     # خبر شهریار ایران: عکس ایشان با حرکت آرام
+                    slide_story(b, n, png, over_video=True, credit="عکس: حساب رسمی شهریار ایران")
+                    clip_presenter(pp, png, rest, out)
+                elif not bv:
                     slide_story(b, n, png); clip_still(png, rest, out)
             else:
                 continue
