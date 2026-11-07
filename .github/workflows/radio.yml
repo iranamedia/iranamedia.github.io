@@ -36,10 +36,10 @@ jobs:
       talk: ${{ steps.plan.outputs.talk }}
     steps:
       - uses: actions/checkout@v5
-      - name: رویدادهای شهریار ایران در جای نخست
-        run: python3 tools/pin_prince.py bulletin/latest.json bulletin/prince.json
       - name: واژه‌های ایرانا (آبراه پارس، اروندرود، نفت ایران …)
         run: python3 tools/terms.py bulletin/latest.json
+      - name: رویدادهای شهریار ایران در جای نخست
+        run: python3 tools/pin_prince.py bulletin/latest.json bulletin/prince.json
       - name: ffmpeg
         timeout-minutes: 5
         run: |

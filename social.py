@@ -12,7 +12,7 @@
 
 اجرا: python3 social.py [--card-only] [--video-only]
 """
-import base64, hashlib, hmac, json, os, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request, uuid
+import base64, hashlib, hmac, json, os, re, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request, uuid
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
@@ -212,11 +212,30 @@ def video(cardpng, audio, out, wave=WAVE):
 
 # ---------- متن پست‌ها ----------
 
+PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده\s*رضا|رضا\s*شاه\s*دوم|رضاشاه\s*دوم")
+
+
+def prince_lead(b):
+    """اگر خبر نخست از شهریار ایران است، همان خبر؛ وگرنه None."""
+    it = (b.get("items") or [None])[0]
+    return it if it and PRINCE.search(it.get("title", "")) else None
+
+
+def title_of(b, limit=100):
+    lead = prince_lead(b)
+    return (lead["title"] if lead else f"رسانه ایرانا | {b['stamp']}")[:limit]
+
+
 def caption(b, limit=2000, tags=True):
-    head = f"🎙 رسانه ایرانا\n{b['stamp']}\n\n"
     tail = f"\n\n🔊 تلگرام: {CHANNEL}\n📱 اپ: {APP}" + (f"\n\n{TAGS}" if tags else "")
+    lead = prince_lead(b)
+    if lead:                                           # زیرنویس: تیتر و خبر شهریار ایران
+        head = f"🎙 {lead['title']}\n\n{lead.get('body', '')}\n\nرسانه ایرانا · {b['stamp']}\n\n"
+        items = b["items"][1:]
+    else:
+        head, items = f"🎙 رسانه ایرانا\n{b['stamp']}\n\n", b["items"]
     lines, size = [], len(head) + len(tail)
-    for it in b["items"]:
+    for it in items:
         l = "▪️ " + it["title"]
         if size + len(l) + 1 > limit: break
         lines.append(l); size += len(l) + 1
@@ -224,8 +243,9 @@ def caption(b, limit=2000, tags=True):
 
 
 def x_text(b):
-    t = f"🎙 رسانه ایرانا\n{b['stamp']}\n"
-    for it in b["items"][:3]:
+    lead = prince_lead(b)
+    t = f"🎙 {lead['title']}\n" if lead else f"🎙 رسانه ایرانا\n{b['stamp']}\n"
+    for it in (b["items"][1:3] if lead else b["items"][:3]):
         l = "\n▪️ " + it["title"]
         if len(t) + len(l) > 272: break
         t += l
@@ -279,7 +299,7 @@ def facebook(b, mp4):
     page, tok = os.environ.get("META_PAGE_ID"), os.environ.get("META_PAGE_TOKEN")
     if not (page and tok): return "skip"
     tok = page_token(page, tok)
-    data, ctype = multipart({"access_token": tok, "title": f"رسانه ایرانا · {b['stamp']}",
+    data, ctype = multipart({"access_token": tok, "title": title_of(b, 250),
                              "description": caption(b)},
                             {"source": ("irana.mp4", open(mp4, "rb").read(), "video/mp4")})
     r = jcall("POST", f"{GRAPH.replace('graph.', 'graph-video.')}/{page}/videos", data=data,
@@ -354,7 +374,7 @@ def youtube(b, mp4):
         headers={"Content-Type": "application/x-www-form-urlencoded"})["access_token"]
     SECRETS.append(tok)
     size = os.path.getsize(mp4)
-    meta = {"snippet": {"title": f"رسانه ایرانا | {b['stamp']}"[:100],
+    meta = {"snippet": {"title": title_of(b, 100),
                         "description": caption(b, 4500).replace("<", "‹").replace(">", "›"),
                         "categoryId": "25", "defaultLanguage": "fa", "defaultAudioLanguage": "fa",
                         "tags": ["ایران", "رسانه ایرانا", "Iranamedia", "خبر"]},

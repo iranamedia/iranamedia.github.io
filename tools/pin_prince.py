@@ -9,7 +9,7 @@
 اجرا: python3 tools/pin_prince.py bulletin/latest.json bulletin/prince.json"""
 import datetime, json, os, re, sys
 
-PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده")
+PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده\s*رضا|رضا\s*شاه\s*دوم|رضاشاه\s*دوم")   # شهریار ایران، شاهزاده رضا پهلوی، رضاشاه دوم
 FA = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
 MAX_HOURS = float(os.environ.get("PRINCE_MAX_HOURS", "48"))
 

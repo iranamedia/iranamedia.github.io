@@ -34,6 +34,7 @@ PEXELS = os.environ.get("PEXELS_API_KEY", "")
 PIXABAY = os.environ.get("PIXABAY_API_KEY", "")
 TALK_DIR = os.environ.get("TALK_DIR", os.path.join(HERE, "_talk"))   # چهره‌های گویا (tools/talk_shot.py)
 ON_CAM_MAX = float(os.environ.get("ON_CAM_MAX", "7"))
+PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده\s*رضا|رضا\s*شاه\s*دوم|رضاشاه\s*دوم")   # شهریار ایران
 TWO_SHOT = 4.0          # پس از آرم آغاز: نمای استودیو با هر دو گوینده (ثانیه)
 BROLL_SOURCE = {"name": "Pexels"}
 
@@ -264,7 +265,7 @@ _used = set()
 
 
 def topic(it):
-    if re.search(r"شهریار\s*ایران|رضا\s*پهلوی", it["title"]):
+    if PRINCE.search(it["title"]):
         return None                                   # خبر شهریار ایران: بی‌فیلم نمادین
     t = it["title"] + " " + it.get("body", "")[:200]
     for keys, q in TOPICS:
@@ -562,8 +563,15 @@ def build():
 
 
 def caption(b):
-    lines = [f"📺 تلویزیون ایرانا · {b['stamp']}", ""]
-    for it in b["items"][:5]:
+    first = (b.get("items") or [{}])[0]
+    if PRINCE.search(first.get("title", "")):          # زیرنویس: تیتر و خبر شهریار ایران
+        body = first.get("body", "")
+        body = body if len(body) <= 450 else body[:450].rsplit(" ", 1)[0] + "…"
+        lines = [f"📺 {first['title']}", "", body, "", f"تلویزیون ایرانا · {b['stamp']}", ""]
+        rest = b["items"][1:5]
+    else:
+        lines, rest = [f"📺 تلویزیون ایرانا · {b['stamp']}", ""], b["items"][:5]
+    for it in rest:
         lines.append("▪️ " + it["title"])
     lines += ["", CHANNEL]
     return "\n".join(lines)[:1000]

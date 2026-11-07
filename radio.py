@@ -259,10 +259,26 @@ def join(files, out):
        "-ar", "44100", "-c:a", "libmp3lame", "-b:a", "128k", "-metadata", "title=رسانه ایرانا", out)
 
 
+PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده\s*رضا|رضا\s*شاه\s*دوم|رضاشاه\s*دوم")
+
+
+def prince_lead(b):
+    """اگر خبر نخست از شهریار ایران است، همان خبر؛ وگرنه None."""
+    it = (b.get("items") or [None])[0]
+    return it if it and PRINCE.search(it.get("title", "")) else None
+
+
 def caption(b):
-    head = f"🎙 {b['stamp']}\n\n"
+    lead = prince_lead(b)
+    if lead:                                           # زیرنویس: تیتر و خبر شهریار ایران
+        body = lead.get("body", "")
+        body = body if len(body) <= 450 else body[:450].rsplit(" ", 1)[0] + "…"
+        head = f"🎙 {lead['title']}\n\n{body}\n\n{b['stamp']}\n\n"
+        items = b["items"][1:]
+    else:
+        head, items = f"🎙 {b['stamp']}\n\n", b["items"]
     lines, size = [], len(head) + 40
-    for it in b["items"]:
+    for it in items:
         l = "▪️ " + it["title"]
         if size + len(l) + 1 > 1000: break
         lines.append(l); size += len(l) + 1
@@ -271,7 +287,9 @@ def caption(b):
 
 def send(path, cap, stamp):
     boundary = uuid.uuid4().hex
-    fields = {"chat_id": CHANNEL, "caption": cap, "title": "رسانه ایرانا", "performer": stamp}
+    lead = prince_lead(json.load(open(os.environ.get("BULLETIN", "bulletin/latest.json"), encoding="utf-8")))
+    title = lead["title"][:120] if lead else "رسانه ایرانا"
+    fields = {"chat_id": CHANNEL, "caption": cap, "title": title, "performer": f"رسانه ایرانا · {stamp}"}
     body = b""
     for k, v in fields.items():
         body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
