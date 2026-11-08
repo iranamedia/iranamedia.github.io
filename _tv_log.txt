@@ -1,0 +1,16 @@
+لباس man: رنگ‌مایه‌ی 25°
+لباس woman: رنگ‌مایه‌ی 150°
+shot 0: گوینده‌ی گویا
+shot 1: گوینده‌ی گویا
+عکس شهریار ایران: 2026-11-07-frankfurt.jpeg
+عکس شهریار ایران: 2026-11-07-frankfurt2.jpeg
+عکس شهریار ایران: 2026-11-07-frankfurt3.jpeg
+عکس شهریار ایران: 2026-11-07-frankfurt4.jpeg
+عکس شهریار ایران: 2026-11-07-frankfurt5.jpeg
+b-roll 1: 'oil tanker ship' pixabay 7338 [ship, freight ship, tanker, river, ocean, istanbul, bosphorus, sea, nature, vessel, boat]
+shot 2: گوینده‌ی گویا
+shot 3: گوینده‌ی گویا
+b-roll 3: 'judge gavel court' pixabay 54904 [law, court, auction, legal, gavel, lawyer, judge, justice, regulation, right, paragraph, rule, symbol, crime, books, attorney, paragraphs, clause, hammer]
+b-roll 4: 'prison bars' pixabay 93536 [jail, prison, calaboose, cell, qued, bar, confinement, enclosure, lockup, 2d, green screen, green, screen, effect]
+shot 6: گوینده‌ی گویا
+TV: /home/runner/work/iranamedia.github.io/iranamedia.github.io/_tv/irana-tv.mp4 188.8s 18508 KB · /home/runner/work/iranamedia.github.io/iranamedia.github.io/_tv/irana-tv-tall.mp4
