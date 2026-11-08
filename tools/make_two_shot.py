@@ -22,13 +22,18 @@ def cutout(path, keep=0.74):
 
 
 # پس‌زمینه: استودیوی شارلوت، بسیار مات و کمی تیره (مانند نمای دور با ژرفای میدان کم)
-bg = Image.open(A("presenter_woman.jpg")).convert("RGB")
-bg = bg.resize((W, int(bg.height * W / bg.width))).crop((0, 0, W, H))
-bg = bg.filter(ImageFilter.GaussianBlur(22)).point(lambda v: int(v * 0.7)).convert("RGBA")
+# (فقط دو کناره‌ی عکس، بی خودِ گوینده، کشیده و مات می‌شوند)
+src = Image.open(A("presenter_woman.jpg")).convert("RGB")
+sw, sh = src.size
+left = src.crop((0, 0, int(sw * 0.28), int(sh * 0.74))).resize((W // 2, H))
+right = src.crop((int(sw * 0.72), 0, sw, int(sh * 0.74))).resize((W - W // 2, H))
+bg = Image.new("RGB", (W, H))
+bg.paste(left, (0, 0)); bg.paste(right, (W // 2, 0))
+bg = bg.filter(ImageFilter.GaussianBlur(28)).point(lambda v: int(v * 0.72)).convert("RGBA")
 
 man, woman = cutout(A("presenter_man.jpg")), cutout(A("presenter_woman.jpg"))
-target_h = int(H * 0.62)                                          # گوینده‌ها از کمر به بالا، دورتر
-desk_top = int(H * 0.70)
+target_h = int(H * 0.58)                                          # گوینده‌ها از کمر به بالا، دورتر
+desk_top = int(H * 0.72)
 for img, cx in ((man, int(W * 0.34)), (woman, int(W * 0.66))):
     s = target_h / img.height
     img = img.resize((int(img.width * s), target_h), Image.LANCZOS)
