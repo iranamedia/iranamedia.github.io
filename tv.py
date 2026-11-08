@@ -42,7 +42,11 @@ W, H = 1920, 1080
 BG, BAR = (10, 21, 48), (18, 36, 90)
 GOLD, WHITE, MIST = (224, 180, 82), (245, 236, 214), (188, 198, 223)
 FA = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
-ENC = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p", "-r", "25"]
+# همه‌ی نماها با یک برچسب رنگ (bt709، tv) ساخته می‌شوند. فیلم‌های Pixabay برچسب رنگ دارند و نماهای دیگر نه؛
+# این ناهمسانی در میانه‌ی ویدیو فیلتر محو آغاز (xfade) را از نو راه می‌انداخت و ویدیو پس از نخستین فیلم
+# نمادین بریده می‌شد (بخش‌های ۲۰ شنبه و ۸ یکشنبه، زیر ۲ دقیقه).
+ENC = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p", "-r", "25",
+       "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"]
 
 
 def ff(*args):
@@ -685,9 +689,10 @@ def build():
            "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2", intro)
         parts.insert(0, intro)
     wide = os.path.join(OUT, "irana-tv.mp4")
+    want = sum(dur(p) for p in parts) - (1.2 if len(parts) == 2 else 0)
     if len(parts) == 2:                                    # آرم آغاز آرام در استودیو محو می‌شود
         off = max(dur(parts[0]) - 1.2, 0.5)
-        ff("-i", parts[0], "-i", parts[1], "-filter_complex",
+        ff("-reinit_filter", "0", "-i", parts[0], "-reinit_filter", "0", "-i", parts[1], "-filter_complex",
            f"[0:v]settb=AVTB,fps=25[a];[1:v]settb=AVTB,fps=25[b];[a][b]xfade=transition=fade:duration=1.2:offset={off:.2f}[v];"
            f"[0:a][1:a]acrossfade=d=1.2[au]", "-map", "[v]", "-map", "[au]",
            *ENC, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", wide)
@@ -695,6 +700,14 @@ def build():
         lst2 = os.path.join(OUT, "parts.txt")
         open(lst2, "w").write("".join(f"file '{p}'\n" for p in parts))
         ff("-f", "concat", "-safe", "0", "-i", lst2, *ENC, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", wide)
+    if dur(wide) < want - 1.5:                             # بریده شد: بی محو، پشت سر هم
+        print(f"هشدار: ویدیو {dur(wide):.1f}s به جای {want:.1f}s؛ ساختن دوباره بی محو", flush=True)
+        ins = [x for p in parts for x in ("-reinit_filter", "0", "-i", p)]
+        ff(*ins, "-filter_complex", "".join(f"[{k}:v]settb=AVTB,fps=25,setsar=1[v{k}];" for k in range(len(parts)))
+           + "".join(f"[v{k}][{k}:a]" for k in range(len(parts))) + f"concat=n={len(parts)}:v=1:a=1[v][au]",
+           "-map", "[v]", "-map", "[au]", *ENC, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", wide)
+    if dur(wide) < want - 1.5:
+        raise SystemExit(f"ویدیوی تلویزیون کوتاه است: {dur(wide):.1f}s به جای {want:.1f}s")
     tall = os.path.join(OUT, "irana-tv-tall.mp4")
     ff("-i", wide, "-filter_complex",
        "[0:v]split[a][b];[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=24:2,"

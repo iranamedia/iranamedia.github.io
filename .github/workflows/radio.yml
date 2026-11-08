@@ -198,6 +198,7 @@ jobs:
         run: python3 tv.py --send-only
       - name: یوتیوب، فیسبوک و اینستاگرام
         if: ${{ !inputs.dry }}
+        continue-on-error: true
         env:
           META_PAGE_ID: ${{ secrets.META_PAGE_ID || secrets.FB_PAGE_ID || '150299551406' }}
           META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
@@ -211,7 +212,7 @@ jobs:
           TV_TALL: _tv/irana-tv-tall.mp4
         run: python3 social.py
       - uses: actions/upload-artifact@v4
-        if: steps.tv.outcome == 'success'
+        if: always() && steps.tv.outcome == 'success'
         with:
           name: irana-tv
           path: _tv/irana-tv*.mp4
