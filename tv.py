@@ -468,13 +468,28 @@ def studio_two():
     out = os.path.join(OUT, "studio_two.png")
     if os.path.exists(out):
         return out
-    back = os.path.join(HERE, "assets", "studio_back.png")
     masks = [os.path.join(HERE, "assets", f"presenter_{v}_person.png") for v in ("man", "woman")]
-    if os.path.exists(back) and all(os.path.exists(m) for m in masks):
-        from PIL import ImageFilter
-        img = Image.open(back).convert("RGBA").resize((W, H))
-        target_h, desk_top = int(H * 0.58), int(H * 0.72)
-        for voice, cx, mp in (("man", int(W * 0.34), masks[0]), ("woman", int(W * 0.66), masks[1])):
+    if os.path.exists(PRESENTER["man"]) and all(os.path.exists(m) for m in masks):
+        from PIL import ImageEnhance, ImageFilter
+        # پس‌زمینه: استودیوی بکتاش (دیوار نقشه‌ی جهان و نمایشگرها)، روشن و تیز؛
+        # جای خودِ او را نمایشگر بزرگ میانی با نشان ایرانا می‌گیرد
+        img = Image.open(PRESENTER["man"]).convert("RGB").resize((W, H), Image.LANCZOS)
+        img = img.filter(ImageFilter.GaussianBlur(1.2))
+        img = ImageEnhance.Brightness(ImageEnhance.Contrast(img).enhance(1.08)).enhance(1.1).convert("RGBA")
+        d = ImageDraw.Draw(img)
+        sx0, sx1, sy0, sy1 = int(W * 0.355), int(W * 0.645), int(H * 0.03), int(H * 0.72)
+        d.rectangle([sx0 - 10, sy0 - 10, sx1 + 10, sy1], fill=(8, 12, 24, 255))      # قاب نمایشگر
+        scr = Image.new("RGBA", (sx1 - sx0, sy1 - sy0))
+        sd = ImageDraw.Draw(scr)
+        for yy in range(scr.height):                                              # نور آبی نمایشگر
+            t = yy / scr.height
+            sd.line([(0, yy), (scr.width, yy)], fill=(int(18 + 20 * (1 - t)), int(40 + 45 * (1 - t)), int(95 + 70 * (1 - t)), 255))
+        if os.path.exists(LOGO):
+            lg = Image.open(LOGO).convert("RGBA").resize((300, 300), Image.LANCZOS)
+            scr.alpha_composite(lg, ((scr.width - 300) // 2, int(scr.height * 0.12)))
+        img.alpha_composite(scr, (sx0, sy0))
+        target_h, desk_top = int(H * 0.54), int(H * 0.72)
+        for voice, cx, mp in (("man", int(W * 0.23), masks[0]), ("woman", int(W * 0.77), masks[1])):
             ph = dressed(voice).convert("RGBA")
             ph.putalpha(Image.open(mp).convert("L").resize(ph.size))
             ph = ph.crop((0, 0, ph.width, int(ph.height * 0.74)))       # نوار نوشته‌ی پایین عکس بیرون
@@ -486,12 +501,9 @@ def studio_two():
             x, y = cx - ph.width // 2, desk_top + 40 - ph.height
             img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)), (x + 12, y + 10))
             img.alpha_composite(ph, (x, y))
-        d = ImageDraw.Draw(img)                        # میز خبر با لبه‌ی زرین و نشان ایرانا
+        d = ImageDraw.Draw(img)                        # میز خبر با لبه‌ی زرین
         d.polygon([(int(W * 0.06), desk_top), (int(W * 0.94), desk_top), (W, H), (0, H)], fill=(14, 26, 58, 255))
         d.rectangle([int(W * 0.06), desk_top, int(W * 0.94), desk_top + 10], fill=GOLD + (255,))
-        if os.path.exists(LOGO):
-            lg = Image.open(LOGO).convert("RGBA").resize((200, 200), Image.LANCZOS)
-            img.alpha_composite(lg, ((W - 200) // 2, desk_top + 40))
         img.convert("RGB").save(out)
         return out
     man, woman = studio_photo("man"), studio_photo("woman")
