@@ -423,7 +423,10 @@ def plan(b, audio, tl):
 
 
 def studio_two():
-    """نمای استودیو با هر دو گوینده: بکتاش و شارلوت کنار هم."""
+    """نمای دور استودیو با هر دو گوینده پشت میز (assets/studio_two.png)؛ اگر نباشد، دو نیمه کنار هم."""
+    made = os.path.join(HERE, "assets", "studio_two.png")
+    if os.path.exists(made):
+        return made
     out = os.path.join(OUT, "studio_two.png")
     if os.path.exists(out):
         return out
