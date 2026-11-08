@@ -12,13 +12,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -q "rembg[cpu]" pillow
+      - run: pip install -q "rembg[cpu]" pillow numpy
       - run: python tools/make_two_shot.py studio_two.png
       - name: نگه‌داری در شاخه‌ی talking-test
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir out && cp studio_two.png out/
+          mkdir out && cp studio_two.png presenter_*_clothes.png out/
           cd out && git init -q && git checkout -q -b talking-test
           git add -A && git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "نمای دور استودیو ${{ github.run_id }}"
           git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}" talking-test

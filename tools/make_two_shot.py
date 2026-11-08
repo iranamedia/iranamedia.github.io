@@ -54,3 +54,20 @@ if os.path.exists(logo_p):
 out = sys.argv[1] if len(sys.argv) > 1 else A("studio_two.png")
 bg.convert("RGB").save(out)
 print("saved", out)
+
+# --- نقاب لباس هر گوینده (برای رنگ دیگر کت، کراوات و پیراهن در هر بخش) ---
+import numpy as np  # noqa: E402
+
+CHIN = {"man": 0.47, "woman": 0.47}                # زیر چانه: لباس؛ بالای آن: چهره و مو
+for who in ("man", "woman"):
+    im = Image.open(A(f"presenter_{who}.jpg")).convert("RGB")
+    person = np.asarray(remove(im, only_mask=True)).astype(np.float32) / 255
+    ycc = np.asarray(im.convert("YCbCr")).astype(np.int16)
+    cb, cr = ycc[..., 1], ycc[..., 2]
+    skin = (cr > 135) & (cr < 180) & (cb > 85) & (cb < 135)
+    rows = np.arange(im.height)[:, None] / im.height
+    mask = person * (~skin) * (rows > CHIN[who])
+    m = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2))
+    dest = os.path.join(os.path.dirname(out), f"presenter_{who}_clothes.png")
+    m.save(dest)
+    print("saved", dest)
