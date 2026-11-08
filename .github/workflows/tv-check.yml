@@ -1,0 +1,60 @@
+name: بازبینی تلویزیون — ساختن دوباره از یک اجرای پیشین (بی انتشار)
+# ویدیوی تلویزیون را با همان صدا و گوینده‌های گویای یک اجرای پیشین دوباره می‌سازد،
+# زمان هر نما را گزارش می‌کند و فیلم‌های نمادین و گزارش را در شاخه‌ی talking-test می‌گذارد. هیچ چیز منتشر نمی‌شود.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "شماره‌ی اجرای radio.yml"
+        required: true
+permissions:
+  contents: write
+  actions: read
+env:
+  FFMPEG_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: talk-*
+          merge-multiple: true
+          path: _talk
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: ابزارها
+        run: |
+          curl -sSfL --retry 3 -o ff.tar.xz "$FFMPEG_URL"
+          tar -xf ff.tar.xz && sudo cp ffmpeg-master-latest-linux64-gpl/bin/ff* /usr/local/bin/ && rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
+          pip install -q --break-system-packages pillow numpy
+          mkdir -p assets/fonts
+          for w in Black Bold Medium; do
+            curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-$w.ttf || true
+          done
+      - name: ساختن تلویزیون
+        env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          SAVE_DIR: _site
+          TALK_DIR: _talk
+        run: python3 tv.py --no-send 2>&1 | tee _tv_log.txt
+      - name: گزارش و نگه‌داری
+        if: always()
+        run: |
+          mkdir -p out
+          for f in _site/latest.mp3 _tv/*.mp4; do
+            [ -f "$f" ] && echo "$(basename $f) $(ffprobe -v error -show_entries format=duration:stream=time_base,r_frame_rate,nb_frames,start_time -of compact=p=0 $f | tr '\n' ' ')"
+          done | tee out/durations.txt
+          cp _tv_log.txt _tv/shots.txt out/ 2>/dev/null || true
+          cp _tv/broll_*.mp4 out/ 2>/dev/null || true
+          cd out && git init -q && git checkout -q -b talking-test
+          git add -A && git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "بازبینی تلویزیون ${{ inputs.run_id }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" talking-test
