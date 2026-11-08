@@ -59,7 +59,7 @@ jobs:
         env:
           SAVE_DIR: _site
         run: |
-          pip install -q --break-system-packages pillow
+          pip install -q --break-system-packages pillow numpy
           echo "talk=$(python3 tv.py --plan | tail -1)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
@@ -141,7 +141,7 @@ jobs:
         run: |
           curl -sSfL --retry 3 -o ff.tar.xz "$FFMPEG_URL"
           tar -xf ff.tar.xz && sudo cp ffmpeg-master-latest-linux64-gpl/bin/ff* /usr/local/bin/ && rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
-          pip install -q --break-system-packages pillow
+          pip install -q --break-system-packages pillow numpy
           if ! python3 -c "from PIL import features; assert features.check('raqm')" 2>/dev/null; then
             timeout 150 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq || true
             timeout 150 sudo apt-get install -y -qq --no-install-recommends libraqm0 libfribidi0 libharfbuzz0b || true

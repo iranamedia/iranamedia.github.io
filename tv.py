@@ -344,6 +344,47 @@ def clip_still(png, seconds, out):
     ff("-loop", "1", "-i", png, "-t", f"{seconds:.3f}", "-vf", f"scale={W}:{H},setsar=1", "-tune", "stillimage", *ENC, "-an", out)
 
 
+# رنگ لباس گوینده‌ها در هر بخش (کت، کراوات، پیراهن رنگی؛ پیراهن سفید سفید می‌ماند).
+# None = رنگ خود عکس. رنگ‌ها رنگ‌مایه‌ی (hue) درجه‌اند؛ با نقاب لباس assets/presenter_*_clothes.png.
+WARDROBE = {"man": [None, 345, 150, 25, 215, 280], "woman": [None, 210, 345, 150, 265, 15]}
+
+
+def wardrobe_index():
+    """هر بخش (روز و ساعت خبرنامه) رنگ دیگری؛ هر دو گوینده هم‌زمان دگرگون می‌شوند."""
+    try:
+        stamp = json.load(open(BULLETIN, encoding="utf-8")).get("stamp", "")
+    except Exception:
+        return 0
+    nums = [int(x) for x in re.findall(r"\d+", stamp.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")))]
+    return (sum(nums) + len(nums)) % len(WARDROBE["man"]) if nums else 0
+
+
+def dressed(voice):
+    """عکس اصلی گوینده با رنگ لباس این بخش."""
+    src = PRESENTER.get(voice, "")
+    out = os.path.join(OUT, f"dressed_{voice}.png")
+    if os.path.exists(out):
+        return Image.open(out).convert("RGB")
+    im = Image.open(src).convert("RGB")
+    hue = WARDROBE[voice][wardrobe_index()]
+    mask_p = os.path.join(HERE, "assets", f"presenter_{voice}_clothes.png")
+    if hue is not None and os.path.exists(mask_p):
+        import numpy as np
+        hsv = np.asarray(im.convert("HSV")).astype(np.float32)
+        m = np.asarray(Image.open(mask_p).convert("L").resize(im.size)).astype(np.float32) / 255
+        m = m * (hsv[..., 1] > 30)                    # تنها جاهای رنگی؛ سفید و خاکستری دست نمی‌خورد
+        new = hsv.copy()
+        new[..., 0] = hue / 360 * 255
+        new[..., 1] = np.clip(hsv[..., 1] * (1.25 if voice == "woman" else 1.1), 0, 255)
+        rgb_new = np.asarray(Image.fromarray(new.astype(np.uint8), "HSV").convert("RGB")).astype(np.float32)
+        rgb_old = np.asarray(im).astype(np.float32)
+        im = Image.fromarray((rgb_old * (1 - m[..., None]) + rgb_new * m[..., None]).astype(np.uint8))
+        print(f"لباس {voice}: رنگ‌مایه‌ی {hue}°", flush=True)
+    os.makedirs(OUT, exist_ok=True)
+    im.save(out)
+    return im
+
+
 def studio_photo(voice):
     """عکس آماده‌ی گوینده: برش ۱۶:۹ از بخش بالای عکس + مات کردن نوشته‌های پس‌زمینه."""
     src = PRESENTER.get(voice, "")
@@ -353,7 +394,7 @@ def studio_photo(voice):
     if os.path.exists(out):
         return out
     from PIL import ImageFilter
-    im = Image.open(src).convert("RGB")
+    im = dressed(voice)
     w, h = im.size
     for x0, y0, x1, y1 in PHOTO_BLUR.get(voice, []):
         box = (int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h))
@@ -424,11 +465,34 @@ def plan(b, audio, tl):
 
 def studio_two():
     """نمای دور استودیو با هر دو گوینده پشت میز (assets/studio_two.png)؛ اگر نباشد، دو نیمه کنار هم."""
-    made = os.path.join(HERE, "assets", "studio_two.png")
-    if os.path.exists(made):
-        return made
     out = os.path.join(OUT, "studio_two.png")
     if os.path.exists(out):
+        return out
+    back = os.path.join(HERE, "assets", "studio_back.png")
+    masks = [os.path.join(HERE, "assets", f"presenter_{v}_person.png") for v in ("man", "woman")]
+    if os.path.exists(back) and all(os.path.exists(m) for m in masks):
+        from PIL import ImageFilter
+        img = Image.open(back).convert("RGBA").resize((W, H))
+        target_h, desk_top = int(H * 0.58), int(H * 0.72)
+        for voice, cx, mp in (("man", int(W * 0.34), masks[0]), ("woman", int(W * 0.66), masks[1])):
+            ph = dressed(voice).convert("RGBA")
+            ph.putalpha(Image.open(mp).convert("L").resize(ph.size))
+            ph = ph.crop((0, 0, ph.width, int(ph.height * 0.74)))       # نوار نوشته‌ی پایین عکس بیرون
+            ph = ph.crop(ph.getbbox())
+            sc = target_h / ph.height
+            ph = ph.resize((int(ph.width * sc), target_h), Image.LANCZOS)
+            sh = Image.new("RGBA", ph.size, (0, 0, 0, 0))
+            sh.putalpha(ph.getchannel("A").point(lambda a: int(a * 0.45)))
+            x, y = cx - ph.width // 2, desk_top + 40 - ph.height
+            img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)), (x + 12, y + 10))
+            img.alpha_composite(ph, (x, y))
+        d = ImageDraw.Draw(img)                        # میز خبر با لبه‌ی زرین و نشان ایرانا
+        d.polygon([(int(W * 0.06), desk_top), (int(W * 0.94), desk_top), (W, H), (0, H)], fill=(14, 26, 58, 255))
+        d.rectangle([int(W * 0.06), desk_top, int(W * 0.94), desk_top + 10], fill=GOLD + (255,))
+        if os.path.exists(LOGO):
+            lg = Image.open(LOGO).convert("RGBA").resize((200, 200), Image.LANCZOS)
+            img.alpha_composite(lg, ((W - 200) // 2, desk_top + 40))
+        img.convert("RGB").save(out)
         return out
     man, woman = studio_photo("man"), studio_photo("woman")
     if not (man and woman):
