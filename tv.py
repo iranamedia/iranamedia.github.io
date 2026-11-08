@@ -442,28 +442,35 @@ def studio_two():
 PRINCE_DIR = os.path.join(HERE, "assets", "prince")   # عکس‌های شهریار ایران که خود رسانه می‌گذارد
 
 
-def prince_photo():
-    """تازه‌ترین عکس پوشه‌ی assets/prince (به ترتیب نام؛ نام را با تاریخ آغاز کنید)، در قاب ۱۶:۹."""
+def prince_photos():
+    """عکس‌های تازه‌ترین روزِ پوشه‌ی assets/prince (نام با تاریخ آغاز می‌شود، مانند 2026-11-07-frankfurt.jpeg)،
+    به ترتیب نام، هر کدام در قاب ۱۶:۹. فایل‌های بدونِ تاریخ تنها هنگامی به کار می‌آیند که فایل تاریخ‌دار نباشد."""
     if not os.path.isdir(PRINCE_DIR):
-        return None
+        return []
     pics = sorted(f for f in os.listdir(PRINCE_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png", ".webp")))
-    if not pics:
-        return None
-    out = os.path.join(OUT, "prince_photo.png")
-    if os.path.exists(out):
-        return out
+    dated = [f for f in pics if re.match(r"\d{4}-\d{2}-\d{2}", f)]
+    if dated:
+        day = max(f[:10] for f in dated)
+        pics = [f for f in dated if f[:10] == day]
+    else:
+        pics = pics[-1:]
     from PIL import ImageFilter
-    im = Image.open(os.path.join(PRINCE_DIR, pics[-1])).convert("RGB")
-    bg = im.copy()
-    scale = max(W / bg.width, H / bg.height)
-    bg = bg.resize((int(bg.width * scale) + 1, int(bg.height * scale) + 1)).crop((0, 0, W, H))
-    bg = bg.filter(ImageFilter.GaussianBlur(30)).point(lambda v: int(v * 0.55))
-    scale = min(W / im.width, H / im.height)
-    fg = im.resize((int(im.width * scale), int(im.height * scale)), Image.LANCZOS)
-    bg.paste(fg, ((W - fg.width) // 2, (H - fg.height) // 2))
-    bg.save(out)
-    print(f"عکس شهریار ایران: {pics[-1]}", flush=True)
-    return out
+    outs = []
+    for k, name in enumerate(pics[:6]):
+        out = os.path.join(OUT, f"prince_photo_{k}.png")
+        if not os.path.exists(out):
+            im = Image.open(os.path.join(PRINCE_DIR, name)).convert("RGB")
+            bg = im.copy()
+            scale = max(W / bg.width, H / bg.height)
+            bg = bg.resize((int(bg.width * scale) + 1, int(bg.height * scale) + 1)).crop((0, 0, W, H))
+            bg = bg.filter(ImageFilter.GaussianBlur(30)).point(lambda v: int(v * 0.55))
+            scale = min(W / im.width, H / im.height)
+            fg = im.resize((int(im.width * scale), int(im.height * scale)), Image.LANCZOS)
+            bg.paste(fg, ((W - fg.width) // 2, (H - fg.height) // 2))
+            bg.save(out)
+            print(f"عکس شهریار ایران: {name}", flush=True)
+        outs.append(out)
+    return outs
 
 
 def talk_clip(i):
@@ -553,10 +560,16 @@ def build():
                         clip_over(bv, png, rest, out)
                     except subprocess.CalledProcessError:
                         bv = None
-                pp = prince_photo() if not bv and PRINCE.search(b["items"][n]["title"]) else None
-                if pp:                                     # خبر شهریار ایران: عکس ایشان با حرکت آرام
+                pps = prince_photos() if not bv and PRINCE.search(b["items"][n]["title"]) else []
+                if pps:                                    # خبر شهریار ایران: عکس‌های ایشان یکی پس از دیگری، با حرکت آرام
                     slide_story(b, n, png, over_video=True, credit="عکس: حساب رسمی شهریار ایران")
-                    clip_presenter(pp, png, rest, out)
+                    pps = pps[:max(1, int(rest // 3))]     # هر عکس دست‌کم ۳ ثانیه
+                    part = rest / len(pps)
+                    for k, pp in enumerate(pps[:-1]):
+                        seg = os.path.join(OUT, f"shot_{i:02d}p{k}.mp4")
+                        clip_presenter(pp, png, part, seg)
+                        clips.append(seg)
+                    clip_presenter(pps[-1], png, rest - part * (len(pps) - 1), out)
                 elif not bv:
                     slide_story(b, n, png); clip_still(png, rest, out)
             else:
