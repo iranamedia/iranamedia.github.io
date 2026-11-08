@@ -7,7 +7,7 @@ on:
         description: "شماره‌ی اجرای آزمایش"
         required: true
       artifact:
-        description: "نام Artifact"
+        description: "نام یا الگوی Artifact (مانند build یا talk-*)"
         default: talking-test
 permissions:
   contents: write
@@ -18,7 +18,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.artifact }}
+          pattern: ${{ inputs.artifact }}
+          merge-multiple: true
           run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
           path: out
