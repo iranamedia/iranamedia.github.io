@@ -21,7 +21,7 @@ t0 = time.time()
 wav = os.path.join(work, "voice.wav")
 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{shot.get('talk_start', shot['start']):.3f}", "-t", f"{shot['on_cam']:.3f}",
                 "-i", os.path.join(tv.SITE, "latest.mp3"), "-ar", "16000", "-ac", "1", wav], check=True)
-photo = tv.studio_photo(shot["voice"])
+photo = tv.studio_photo(shot["voice"], shot.get("mood", ""))
 cmd = [sys.executable, "inference.py", "--driven_audio", wav, "--source_image", photo, "--result_dir", work,
        "--preprocess", "full", "--size", "256", "--cpu", "--batch_size", "4", "--still"]
 subprocess.run(cmd, cwd=sad, check=True)

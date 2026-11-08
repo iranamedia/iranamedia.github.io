@@ -28,10 +28,13 @@ bg.paste(left, (0, 0)); bg.paste(right, (W // 2, 0))
 bg.filter(ImageFilter.GaussianBlur(28)).point(lambda v: int(v * 0.72)).save(os.path.join(OUT, "studio_back.png"))
 
 CHIN = 0.47                                         # زیر چانه: لباس؛ بالای آن: چهره و مو
-for who in ("man", "woman"):
-    im = Image.open(A(f"presenter_{who}.jpg")).convert("RGB")
+for name in ("man", "woman", "man_serious", "woman_serious"):     # عکس‌های جدی، اگر باشند
+    if not os.path.exists(A(f"presenter_{name}.jpg")):
+        continue
+    who = name.split("_")[0]
+    im = Image.open(A(f"presenter_{name}.jpg")).convert("RGB")
     person = remove(im, only_mask=True)
-    person.save(os.path.join(OUT, f"presenter_{who}_person.png"))
+    person.save(os.path.join(OUT, f"presenter_{name}_person.png"))
     p = np.asarray(person).astype(np.float32) / 255
     h, w = p.shape
     rows = np.arange(h)[:, None] / h
@@ -46,5 +49,5 @@ for who in ("man", "woman"):
         v = np.asarray(im.convert("HSV")).astype(np.float32)[..., 2] / 255
         mask *= (v > 0.38)                            # کت روشن و پیراهن؛ موی تیره بیرون
     Image.fromarray((np.clip(mask, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2)).save(
-        os.path.join(OUT, f"presenter_{who}_clothes.png"))
+        os.path.join(OUT, f"presenter_{name}_clothes.png"))
 print("saved to", OUT)

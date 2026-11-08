@@ -1,6 +1,9 @@
-name: ساختن نمای دور استودیو (دو گوینده پشت میز)
-# یک بار اجرا می‌شود؛ نتیجه در شاخه‌ی talking-test (studio_two.png) برای دیدن، پیش از گذاشتن در assets.
+name: نقاب گوینده‌ها (برای نمای دور استودیو و رنگ لباس)
+# هر بار که عکس گوینده‌ای در assets گذاشته یا دگرگون شود (مانند presenter_man_serious.jpg)،
+# نقاب گوینده و نقاب لباس او با rembg ساخته و در assets ثبت می‌شود.
 on:
+  push:
+    paths: ["assets/presenter_*.jpg"]
   workflow_dispatch:
 permissions:
   contents: write
@@ -14,10 +17,10 @@ jobs:
           python-version: "3.11"
       - run: pip install -q "rembg[cpu]" pillow numpy
       - run: python tools/make_two_shot.py out
-      - name: نگه‌داری در شاخه‌ی talking-test
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: ثبت نقاب‌ها در assets
         run: |
-          cd out && git init -q && git checkout -q -b talking-test
-          git add -A && git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "نمای دور استودیو ${{ github.run_id }}"
-          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}" talking-test
+          cp out/presenter_*_person.png out/presenter_*_clothes.png assets/
+          git add assets/presenter_*_person.png assets/presenter_*_clothes.png
+          if git diff --cached --quiet; then echo "بی‌تغییر"; exit 0; fi
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "نقاب گوینده‌ها"
+          git pull -q --rebase && git push -q

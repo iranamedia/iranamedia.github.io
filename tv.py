@@ -359,15 +359,32 @@ def wardrobe_index():
     return (sum(nums) + len(nums)) % len(WARDROBE["man"]) if nums else 0
 
 
-def dressed(voice):
+# خبرهای سوگ (اعدام، کشته‌شدن، مرگ): گوینده بی‌لبخند. عکس جدی گوینده: assets/presenter_<man|woman>_serious.jpg
+# اگر عکس جدی نباشد، در این خبرها گوینده روی صفحه نمی‌آید (تنها قاب تیتر یا فیلم نمادین).
+SAD = re.compile(r"اعدام|کشته|جان[\s\u200c]*باخت|درگذشت|مرگ|قتل|به[\s\u200c]*دار|سوگ|جان[\s\u200c]*سپرد|کشتار|شهید")
+
+
+def mood_of(it):
+    return "serious" if SAD.search(it.get("title", "") + " " + it.get("body", "")[:300]) else ""
+
+
+def photo_src(voice, mood=""):
+    if mood == "serious":
+        p = os.path.join(HERE, "assets", f"presenter_{voice}_serious.jpg")
+        return p if os.path.exists(p) else None
+    return PRESENTER.get(voice, "")
+
+
+def dressed(voice, mood=""):
     """عکس اصلی گوینده با رنگ لباس این بخش."""
-    src = PRESENTER.get(voice, "")
-    out = os.path.join(OUT, f"dressed_{voice}.png")
+    src = photo_src(voice, mood)
+    tag = f"_{mood}" if mood else ""
+    out = os.path.join(OUT, f"dressed_{voice}{tag}.png")
     if os.path.exists(out):
         return Image.open(out).convert("RGB")
     im = Image.open(src).convert("RGB")
     hue = WARDROBE[voice][wardrobe_index()]
-    mask_p = os.path.join(HERE, "assets", f"presenter_{voice}_clothes.png")
+    mask_p = os.path.join(HERE, "assets", f"presenter_{voice}{tag}_clothes.png")
     if hue is not None and os.path.exists(mask_p):
         import numpy as np
         hsv = np.asarray(im.convert("HSV")).astype(np.float32)
@@ -385,16 +402,16 @@ def dressed(voice):
     return im
 
 
-def studio_photo(voice):
+def studio_photo(voice, mood=""):
     """عکس آماده‌ی گوینده: برش ۱۶:۹ از بخش بالای عکس + مات کردن نوشته‌های پس‌زمینه."""
-    src = PRESENTER.get(voice, "")
-    if not os.path.exists(src):
+    src = photo_src(voice, mood)
+    if not src or not os.path.exists(src):
         return None
-    out = os.path.join(OUT, f"studio_{voice}.png")
+    out = os.path.join(OUT, f"studio_{voice}{'_' + mood if mood else ''}.png")
     if os.path.exists(out):
         return out
     from PIL import ImageFilter
-    im = dressed(voice)
+    im = dressed(voice, mood)
     w, h = im.size
     for x0, y0, x1, y1 in PHOTO_BLUR.get(voice, []):
         box = (int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h))
@@ -448,7 +465,8 @@ def plan(b, audio, tl):
         seconds *= scale
         voice = key[2] if key[0] == "story" else key[1] if key[0] == "outro" else "man" if key[0] == "title" else None
         on_cam, lead = 0.0, 0.0
-        if voice and os.path.exists(PRESENTER.get(voice, "")):
+        mood = mood_of(b["items"][key[1]]) if key[0] == "story" else ""
+        if voice and photo_src(voice, mood):
             if key[0] == "story":
                 on_cam = min(ON_CAM_MAX, seconds * 0.45)
             elif key[0] == "outro":
@@ -457,7 +475,7 @@ def plan(b, audio, tl):
                 lead = min(TWO_SHOT, seconds * 0.3)
                 on_cam = max(0.0, min(ON_CAM_MAX, seconds - lead - 3))
         out.append({"i": i, "key": list(key), "start": round(t, 3), "seconds": round(seconds, 3),
-                    "voice": voice, "lead": round(lead, 3), "on_cam": round(on_cam, 3),
+                    "voice": voice, "mood": mood, "lead": round(lead, 3), "on_cam": round(on_cam, 3),
                     "talk_start": round(t + lead, 3)})
         t += seconds
     return out
@@ -621,7 +639,7 @@ def build():
                 slide_end(b, png); clip_still(png, seconds, out)
         else:
             n, voice = key[1], key[2]
-            photo = studio_photo(voice)
+            photo = studio_photo(voice, sh.get("mood", "")) if on_cam else None   # خبر سوگ: گوینده‌ی جدی یا هیچ
             count = f"خبر {str(n + 1).translate(FA)} از {str(min(len(b['items']), 5)).translate(FA)}"
             bv = broll(b["items"][n], n)
             # گوینده خبر را آغاز می‌کند (گویا، اگر ساخته شده)، سپس فیلم نمادین یا قاب خبر
