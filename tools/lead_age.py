@@ -1,12 +1,17 @@
-"""هیچ خبری بیش از ۲۴ ساعت در صدر خبرنامه نمی‌ماند؛ باید به‌روز یا بازنویسی شود.
+"""تنها خبر شهریار ایران می‌تواند تا ۲۴ ساعت خبر نخست بماند؛ خبرهای دیگر تا LEAD_MAX_HOURS (پیش‌فرض ۶) ساعت.
+پس از آن خبر صدر باید به‌روز یا بازنویسی شود.
 
 خبر صدر و زمانی که به صدر آمده در lead.json تارنما نگه داشته می‌شود (https://iranamedia.github.io/lead.json).
-اگر همان تیتر بیش از LEAD_MAX_HOURS (پیش‌فرض ۲۴) ساعت در صدر مانده باشد، یک پله پایین می‌رود
+اگر همان تیتر بیش از این زمان در صدر مانده باشد، یک پله پایین می‌رود
 و تیترش در فهرست «بازنشسته» می‌ماند تا دوباره به صدر برنگردد. تیتر تازه (بازنویسی با رویداد تازه) دوباره به صدر می‌تواند بیاید.
 اجرا: python3 tools/lead_age.py bulletin/latest.json _site/lead.json"""
 import datetime, json, os, sys, urllib.request
 
-MAX_HOURS = float(os.environ.get("LEAD_MAX_HOURS", "24"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pin_prince import is_prince  # noqa: E402
+
+PRINCE_HOURS = float(os.environ.get("PRINCE_LEAD_HOURS", "24"))   # خبر شهریار ایران
+MAX_HOURS = float(os.environ.get("LEAD_MAX_HOURS", "6"))          # هر خبر دیگر
 URL = os.environ.get("LEAD_URL", "https://iranamedia.github.io/lead.json")
 KEEP_RETIRED_HOURS = 96
 
@@ -49,7 +54,8 @@ def main(path, out):
         since = parse(prev.get("since", "")) if prev.get("title") == title else None
         since = since or t
         hours = (t - since).total_seconds() / 3600
-        if hours > MAX_HOURS and len(items) > 1:
+        limit = PRINCE_HOURS if is_prince(items[0]) else MAX_HOURS
+        if hours > limit and len(items) > 1:
             retired[title] = t.isoformat()
             items.insert(1, items.pop(0))
             print(f"خبر صدر {hours:.0f} ساعت در صدر بود؛ یک پله پایین رفت:", title)
