@@ -1,4 +1,4 @@
-"""تنها خبر شهریار ایران می‌تواند تا ۲۴ ساعت خبر نخست بماند؛ خبرهای دیگر تا LEAD_MAX_HOURS (پیش‌فرض ۶) ساعت.
+"""تنها خبر شهریار ایران می‌تواند تا ۲۴ ساعت خبر نخست بماند؛ خبرهای دیگر تا LEAD_MAX_HOURS (پیش‌فرض ۳) ساعت.
 پس از آن خبر صدر باید به‌روز یا بازنویسی شود.
 
 خبر صدر و زمانی که به صدر آمده در lead.json تارنما نگه داشته می‌شود (https://iranamedia.github.io/lead.json).
@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pin_prince import is_prince  # noqa: E402
 
 PRINCE_HOURS = float(os.environ.get("PRINCE_LEAD_HOURS", "24"))   # خبر شهریار ایران
-MAX_HOURS = float(os.environ.get("LEAD_MAX_HOURS", "6"))          # هر خبر دیگر
+MAX_HOURS = float(os.environ.get("LEAD_MAX_HOURS", "3"))          # هر خبر دیگر
 URL = os.environ.get("LEAD_URL", "https://iranamedia.github.io/lead.json")
 KEEP_RETIRED_HOURS = 96
 
