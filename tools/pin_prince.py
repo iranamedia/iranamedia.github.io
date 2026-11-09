@@ -29,8 +29,18 @@ def age_hours(saved):
 def main(path, prince_path):
     b = json.load(open(path, encoding="utf-8"))
     items = b.get("items", [])
-    mine = [it for it in items if is_prince(it)]
     saved = json.load(open(prince_path, encoding="utf-8")) if os.path.exists(prince_path) else {}
+    old = saved.get("item", {}).get("title")
+    if old and (saved.get("stale") or age_hours(saved) > MAX_HOURS):
+        # رویداد کهنه‌ی شهریار ایران (بیش از ۴۸ ساعت، یا "stale": true به خواست رسانه): دیگر در خبرنامه نمی‌آید
+        n = len(items)
+        items = [it for it in items if it.get("title") != old]
+        old_url = (saved.get("source") or {}).get("url")
+        if n != len(items):
+            b["sources"] = [x for x in b.get("sources", []) if x.get("url") != old_url]
+            print("خبر کهنه‌ی شهریار ایران برداشته شد:", old)
+        b["items"] = items
+    mine = [it for it in items if is_prince(it)]
     if saved.get("pin_until") and saved.get("item", {}).get("title"):
         try:
             until = datetime.datetime.fromisoformat(saved["pin_until"].replace("Z", "+00:00"))
@@ -54,7 +64,7 @@ def main(path, prince_path):
     if not mine and os.path.exists(prince_path):
         saved = json.load(open(prince_path, encoding="utf-8"))
         pinned, src, age = saved.get("item"), saved.get("source"), age_hours(saved)
-        if pinned and pinned.get("title") and age <= MAX_HOURS:
+        if pinned and pinned.get("title") and age <= MAX_HOURS and not saved.get("stale"):
             mine = [pinned]
             if src and src.get("url") and all(x.get("url") != src["url"] for x in b.get("sources", [])):
                 b.setdefault("sources", []).insert(0, src)
