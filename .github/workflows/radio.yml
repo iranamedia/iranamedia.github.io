@@ -40,6 +40,8 @@ jobs:
         run: python3 tools/terms.py bulletin/latest.json
       - name: رویدادهای شهریار ایران در جای نخست
         run: python3 tools/pin_prince.py bulletin/latest.json bulletin/prince.json
+      - name: هیچ خبری بیش از ۲۴ ساعت در صدر نمی‌ماند
+        run: python3 tools/lead_age.py bulletin/latest.json _site/lead.json
       - name: ffmpeg
         timeout-minutes: 5
         run: |

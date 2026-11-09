@@ -3,7 +3,7 @@
 
 - خبر شهریار ایران به جای نخست می‌رود.
 - اگر خبرنامه خبری از ایشان ندارد، واپسین خبرشان (bulletin/prince.json) نخست می‌ماند،
-  مگر آنکه کهنه شده باشد (بیش از PRINCE_MAX_HOURS ساعت، پیش‌فرض ۴۸).
+  مگر آنکه کهنه شده باشد (بیش از PRINCE_MAX_HOURS ساعت، پیش‌فرض ۲۴).
 - رویداد ارجدارتر: اگر نویسنده خبری را با "lead": true نشان داده باشد، آن خبر نخست می‌آید
   و خبر شهریار ایران دوم.
 اجرا: python3 tools/pin_prince.py bulletin/latest.json bulletin/prince.json"""
@@ -11,7 +11,7 @@ import datetime, json, os, re, sys
 
 PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده\s*رضا|رضا\s*شاه\s*دوم|رضاشاه\s*دوم")   # شهریار ایران، شاهزاده رضا پهلوی، رضاشاه دوم
 FA = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
-MAX_HOURS = float(os.environ.get("PRINCE_MAX_HOURS", "48"))
+MAX_HOURS = float(os.environ.get("PRINCE_MAX_HOURS", "24"))
 
 
 def is_prince(it):
@@ -32,7 +32,7 @@ def main(path, prince_path):
     saved = json.load(open(prince_path, encoding="utf-8")) if os.path.exists(prince_path) else {}
     old = saved.get("item", {}).get("title")
     if old and (saved.get("stale") or age_hours(saved) > MAX_HOURS):
-        # رویداد کهنه‌ی شهریار ایران (بیش از ۴۸ ساعت، یا "stale": true به خواست رسانه): دیگر در خبرنامه نمی‌آید
+        # رویداد کهنه‌ی شهریار ایران (بیش از ۲۴ ساعت، یا "stale": true به خواست رسانه): دیگر در خبرنامه نمی‌آید
         n = len(items)
         items = [it for it in items if it.get("title") != old]
         old_url = (saved.get("source") or {}).get("url")
