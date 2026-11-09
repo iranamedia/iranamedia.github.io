@@ -120,8 +120,15 @@ def spoken_time(stamp):
     return f"{hp}، {wd} {ordinal(int(day))}ِ {mon}ماه سال {yr}"
 
 
+_PN = r"(?:شاهزاده[\s\u200c]+رضا[\s\u200c]+پهلوی|شهریار[\s\u200c]+ایران|رضا[\s\u200c]*شاه[\s\u200c]+دوم)"
+PRINCE_HEAD = re.compile(rf"\s*({_PN}(?:[\s،]+{_PN})*)\s*[:،]?\s+")    # نام ایشان در آغاز تیتر
+
+
 def pause_after_subject(title):
     """تیتر: پس از گوینده/منبع (نخستین «،» یا «:» در آغاز تیتر) درنگ؛ «شهریار ایران ... کشورهای جهان کنار مردم ایران ایستاده‌اند»."""
+    m = PRINCE_HEAD.match(title)                       # «رضاشاه دوم ... آزادی ایران نزدیک است»
+    if m and m.end() < len(title):
+        return m.group(1) + " ... " + title[m.end():]
     m = re.search(r"\s*[،:]\s*", title)
     if m and m.start() <= 45:
         return title[:m.start()] + " ... " + title[m.end():]
