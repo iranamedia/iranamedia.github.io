@@ -8,6 +8,7 @@
   و خبر شهریار ایران دوم.
 اجرا: python3 tools/pin_prince.py bulletin/latest.json bulletin/prince.json"""
 import datetime, json, os, re, sys
+VOICED = (0, 8, 16, 20)    # ساعت‌های گفتاری تهران (رادیو و تلویزیون): ۵ خبر
 
 PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده\s*رضا|رضا\s*شاه\s*دوم|رضاشاه\s*دوم")   # شهریار ایران، شاهزاده رضا پهلوی، رضاشاه دوم
 FA = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
@@ -56,7 +57,7 @@ def main(path, prince_path):
             for it in others:
                 it.pop("lead", None)
             m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
-            cap = 5 if m and int(m.group(1)) in (8, 20) else 10
+            cap = 5 if m and int(m.group(1)) % 24 in VOICED else 10
             b["items"] = ([pinned] + [it for it in others if is_prince(it)] + [it for it in others if not is_prince(it)])[:cap]
             json.dump(b, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             print("رویداد برگزیده تا", saved["pin_until"], "نخست:", pinned["title"])
@@ -74,7 +75,7 @@ def main(path, prince_path):
     lead = [it for it in items if it.get("lead") and not is_prince(it)][:1]
     rest = [it for it in items if not is_prince(it) and it not in lead]
     m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
-    cap = 5 if m and int(m.group(1)) in (8, 20) else 10
+    cap = 5 if m and int(m.group(1)) % 24 in VOICED else 10
     b["items"] = (lead + mine + rest)[:cap]
     for it in b["items"]:
         it.pop("lead", None)
