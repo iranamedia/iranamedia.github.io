@@ -12,4 +12,4 @@ jobs:
           KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: |
           curl -sS -H "xi-api-key: $KEY" https://api.elevenlabs.io/v1/user/subscription \
-            | python3 -c "import json,sys,datetime;d=json.load(sys.stdin);print({k:d.get(k) for k in ('tier','character_count','character_limit','next_character_count_reset_unix','status')});r=d.get('next_character_count_reset_unix');print('reset', r and datetime.datetime.utcfromtimestamp(r))"
+            | python3 -c "import json,sys;d=json.load(sys.stdin);print(json.dumps(d.get(\"detail\", d))[:400])"
