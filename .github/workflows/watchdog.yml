@@ -49,7 +49,7 @@ jobs:
           # واپسین بخش سیما: اجرای radio.yml که «گوینده‌ی گویا» داشت، آیا ویدیو (irana-tv) ساخت؟
           T2="هشدار: سیمای ایرانا ساخته نشد"
           for id in $(gh run list --workflow radio.yml --limit 30 --json databaseId,status --jq '.[]|select(.status=="completed")|.databaseId'); do
-            talk=$(gh api "repos/${{ github.repository }}/actions/runs/$id/jobs" --jq '[.jobs[]|select(.name|test("گویا"))]|length')
+            talk=$(gh api "repos/${{ github.repository }}/actions/runs/$id/jobs" --jq '[.jobs[]|select((.name|test("گویا")) and .conclusion != "skipped")]|length')
             [ "$talk" -gt 0 ] || continue
             tv=$(gh api "repos/${{ github.repository }}/actions/runs/$id/artifacts" --jq '[.artifacts[]|select(.name=="irana-tv")]|length')
             if [ "$tv" -gt 0 ]; then alert "$T2" "بخش $id ویدیو داشت." 0
