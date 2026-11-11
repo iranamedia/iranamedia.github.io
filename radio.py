@@ -418,4 +418,19 @@ def main(src="bulletin/latest.json", dry=False, mode="all"):
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     mode = "build" if "--build" in sys.argv else "send" if "--send" in sys.argv else "all"
-    main(*args, dry="--dry" in sys.argv, mode=mode)
+    if mode != "build":
+        main(*args, dry="--dry" in sys.argv, mode=mode)
+    else:
+        try:
+            main(*args, dry="--dry" in sys.argv, mode=mode)
+        except (SystemExit, Exception) as e:          # ElevenLabs نرسید یا سهمیه تمام شد: خبرنامه دست‌کم متنی برود
+            if isinstance(e, SystemExit) and not e.code:
+                raise
+            sd = os.environ.get("SAVE_DIR", "")
+            for f in ("timeline.json", "latest.mp3"):
+                try: os.remove(os.path.join(sd, f))
+                except OSError: pass
+            keep_old_audio()
+            if sd:
+                open(os.path.join(sd, ".tts_failed"), "w", encoding="utf-8").write(str(e)[:500])
+            print("::warning::ساختن صدا ناکام ماند؛ این بخش تنها متنی می‌رود:", str(e)[:300])

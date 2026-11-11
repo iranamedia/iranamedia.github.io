@@ -1,0 +1,58 @@
+name: پاسبان ایرانا — آیا خبرنامه و سیما به موقع رسید؟
+# هر ساعت می‌نگرد:
+#   - آیا خبرنامه‌ی تازه در ۹۰ دقیقه‌ی گذشته نوشته شده است؟ (اگر نه، نویسنده‌ی خودکار ایستاده)
+#   - آیا واپسین بخش سیمای ایرانا (۸ یا ۲۰) ویدیو داشت؟
+# اگر گرفتاری باشد، یک issue در GitHub باز می‌شود (GitHub به دارنده‌ی مخزن ایمیل می‌فرستد)؛
+# هنگامی که درست شود، issue بسته می‌شود.
+on:
+  schedule:
+    - cron: "40 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+  actions: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 30
+      - name: نگریستن
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          alert() {  # $1 عنوان، $2 متن، $3 1=گرفتاری 0=درست، $4 نشانه (اگر پیش‌تر گفته شده، دوباره گفته نمی‌شود)
+            n=$(gh issue list --state open --search "\"$1\" in:title" --json number --jq '.[0].number')
+            if [ "$3" = 1 ]; then
+              if [ -n "$n" ]; then
+                [ -n "$4" ] && gh issue view "$n" --comments | grep -q -- "$4" && return 0
+                gh issue comment "$n" --body "$2"
+              else gh issue create --title "$1" --body "$2"; fi
+            elif [ -n "$n" ]; then
+              gh issue close "$n" --comment "درست شد: $2"
+            fi
+          }
+          now=$(date -u +%s)
+          last=$(git log -1 --format=%ct -- bulletin/latest.json)
+          age=$(( (now - last) / 60 ))
+          stamp=$(python3 -c "import json;print(json.load(open('bulletin/latest.json'))['stamp'])")
+          echo "واپسین خبرنامه: $stamp ($age دقیقه پیش)"
+          T1="هشدار: خبرنامه‌ی ایرانا ایستاده است"
+          if [ "$age" -gt 90 ]; then
+            alert "$T1" "$(date -u +%FT%RZ) — واپسین خبرنامه $age دقیقه پیش بود ($stamp). نویسنده‌ی خودکار (کار زمان‌بندی‌شده در Claude) را بنگرید." 1
+          else
+            alert "$T1" "خبرنامه‌ی تازه رسید ($stamp)." 0
+          fi
+          # واپسین بخش سیما: اجرای radio.yml که «گوینده‌ی گویا» داشت، آیا ویدیو (irana-tv) ساخت؟
+          T2="هشدار: سیمای ایرانا ساخته نشد"
+          for id in $(gh run list --workflow radio.yml --limit 30 --json databaseId,status --jq '.[]|select(.status=="completed")|.databaseId'); do
+            talk=$(gh api "repos/${{ github.repository }}/actions/runs/$id/jobs" --jq '[.jobs[]|select(.name|test("گویا"))]|length')
+            [ "$talk" -gt 0 ] || continue
+            tv=$(gh api "repos/${{ github.repository }}/actions/runs/$id/artifacts" --jq '[.artifacts[]|select(.name=="irana-tv")]|length')
+            if [ "$tv" -gt 0 ]; then alert "$T2" "بخش $id ویدیو داشت." 0
+            else alert "$T2" "$(date -u +%FT%RZ) — اجرای $id ویدیوی سیما نساخت: https://github.com/${{ github.repository }}/actions/runs/$id" 1 "$id"; fi
+            break
+          done
