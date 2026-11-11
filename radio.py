@@ -318,7 +318,7 @@ def send(path, cap, stamp):
     if not res.get("ok"): fail(f"Telegram failed: {res}")
 
 
-VOICE_HOURS = {int(x) for x in os.environ.get("VOICE_HOURS", "0,8,16,20").split(",") if x.strip()}   # ساعت‌های گفتاری به وقت تهران؛ دیگر ساعت‌ها فقط متن
+VOICE_HOURS = {int(x) for x in os.environ.get("VOICE_HOURS", "8,20").split(",") if x.strip()}   # ساعت‌های گفتاری به وقت تهران؛ دیگر ساعت‌ها فقط متن
 
 
 def stamp_hour(stamp):
