@@ -3,7 +3,8 @@
 
 - خبر شهریار ایران به جای نخست می‌رود.
 - اگر خبرنامه خبری از ایشان ندارد، واپسین خبرشان (bulletin/prince.json) نخست می‌ماند،
-  مگر آنکه کهنه شده باشد (بیش از PRINCE_MAX_HOURS ساعت، پیش‌فرض ۲۴).
+  تا "hours" ساعت پس از رویداد: ۱۲ برای رویداد ارجدار، ۶ برای خبر روزانه (ارزیابی نویسنده؛ پیش‌فرض ۱۲).
+  پس از آن خبر ایشان دیگر نخست نیست (اگر در خبرنامه بماند، جای دوم یا پایین‌تر).
 - رویداد ارجدارتر: اگر نویسنده خبری را با "lead": true نشان داده باشد، آن خبر نخست می‌آید
   و خبر شهریار ایران دوم.
 اجرا: python3 tools/pin_prince.py bulletin/latest.json bulletin/prince.json"""
@@ -12,7 +13,16 @@ VOICED = (8, 20)    # ساعت‌های گفتاری تهران (رادیو و �
 
 PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده\s*رضا|رضا\s*شاه\s*دوم|رضاشاه\s*دوم")   # شهریار ایران، شاهزاده رضا پهلوی، رضاشاه دوم
 FA = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
-MAX_HOURS = float(os.environ.get("PRINCE_MAX_HOURS", "24"))
+DEFAULT_HOURS = 12
+
+
+def window(saved):
+    """چند ساعت خبر شهریار ایران نخست می‌ماند: ۱۲ یا ۶، به ارزیابی رسانه (prince.json → "hours")."""
+    try:
+        h = float(saved.get("hours", DEFAULT_HOURS))
+    except (TypeError, ValueError):
+        h = DEFAULT_HOURS
+    return 6.0 if h <= 6 else 12.0
 
 
 def is_prince(it):
@@ -32,8 +42,15 @@ def main(path, prince_path):
     items = b.get("items", [])
     saved = json.load(open(prince_path, encoding="utf-8")) if os.path.exists(prince_path) else {}
     old = saved.get("item", {}).get("title")
-    if old and (saved.get("stale") or age_hours(saved) > MAX_HOURS):
-        # رویداد کهنه‌ی شهریار ایران (بیش از ۲۴ ساعت، یا "stale": true به خواست رسانه): دیگر در خبرنامه نمی‌آید
+    expired = None
+    if old and not saved.get("stale") and age_hours(saved) > window(saved):
+        # زمان صدر گذشت: خبر می‌تواند بماند، ولی دیگر نخست نیست
+        expired = next((it for it in items if it.get("title") == old), None)
+        if expired:
+            items = [it for it in items if it is not expired]
+            print(f"خبر شهریار ایران {age_hours(saved):.0f} ساعت پیش بود (مرز {window(saved):.0f})؛ دیگر نخست نیست:", old)
+    if old and saved.get("stale"):
+        # "stale": true به خواست رسانه: دیگر در خبرنامه نمی‌آید
         n = len(items)
         items = [it for it in items if it.get("title") != old]
         old_url = (saved.get("source") or {}).get("url")
@@ -65,7 +82,7 @@ def main(path, prince_path):
     if not mine and os.path.exists(prince_path):
         saved = json.load(open(prince_path, encoding="utf-8"))
         pinned, src, age = saved.get("item"), saved.get("source"), age_hours(saved)
-        if pinned and pinned.get("title") and age <= MAX_HOURS and not saved.get("stale"):
+        if pinned and pinned.get("title") and age <= window(saved) and not saved.get("stale"):
             mine = [pinned]
             if src and src.get("url") and all(x.get("url") != src["url"] for x in b.get("sources", [])):
                 b.setdefault("sources", []).insert(0, src)
@@ -74,6 +91,8 @@ def main(path, prince_path):
             print(f"خبر شهریار ایران کهنه شده ({age:.0f} ساعت)؛ دیگر نخست نمی‌ماند")
     lead = [it for it in items if it.get("lead") and not is_prince(it)][:1]
     rest = [it for it in items if not is_prince(it) and it not in lead]
+    if expired:
+        rest.insert(1 if rest else 0, expired)
     m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
     cap = 5 if m and int(m.group(1)) % 24 in VOICED else 10
     b["items"] = (lead + mine + rest)[:cap]

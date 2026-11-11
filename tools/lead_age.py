@@ -1,4 +1,4 @@
-"""تنها خبر شهریار ایران می‌تواند تا ۲۴ ساعت خبر نخست بماند؛ خبرهای دیگر تا LEAD_MAX_HOURS (پیش‌فرض ۳) ساعت.
+"""تنها خبر شهریار ایران می‌تواند تا ۱۲ یا ۶ ساعت (prince.json → "hours") خبر نخست بماند؛ خبرهای دیگر تا LEAD_MAX_HOURS (پیش‌فرض ۳) ساعت.
 پس از آن خبر صدر باید به‌روز یا بازنویسی شود.
 
 خبر صدر و زمانی که به صدر آمده در lead.json تارنما نگه داشته می‌شود (https://iranamedia.github.io/lead.json).
@@ -8,9 +8,8 @@
 import datetime, json, os, sys, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pin_prince import is_prince  # noqa: E402
+from pin_prince import is_prince, window  # noqa: E402
 
-PRINCE_HOURS = float(os.environ.get("PRINCE_LEAD_HOURS", "24"))   # خبر شهریار ایران
 MAX_HOURS = float(os.environ.get("LEAD_MAX_HOURS", "3"))          # هر خبر دیگر
 URL = os.environ.get("LEAD_URL", "https://iranamedia.github.io/lead.json")
 KEEP_RETIRED_HOURS = 96
@@ -36,7 +35,7 @@ def previous():
         return {}
 
 
-def main(path, out):
+def main(path, out, prince_path="bulletin/prince.json"):
     b = json.load(open(path, encoding="utf-8"))
     items = b.get("items", [])
     prev = previous()
@@ -54,7 +53,8 @@ def main(path, out):
         since = parse(prev.get("since", "")) if prev.get("title") == title else None
         since = since or t
         hours = (t - since).total_seconds() / 3600
-        limit = PRINCE_HOURS if is_prince(items[0]) else MAX_HOURS
+        saved = json.load(open(prince_path, encoding="utf-8")) if os.path.exists(prince_path) else {}
+        limit = window(saved) if is_prince(items[0]) else MAX_HOURS
         if hours > limit and len(items) > 1:
             retired[title] = t.isoformat()
             items.insert(1, items.pop(0))
@@ -69,4 +69,4 @@ def main(path, out):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:3])
+    main(*sys.argv[1:4])
