@@ -7,7 +7,7 @@
   },
   {
    "title": "آژانس بین‌المللی انرژی اتمی: جمهوری اسلامی گفت گفت‌وگو درباره‌ی نظارت هسته‌ای زیر تهدید نظامی از سر گرفته نمی‌شود",
-   "body": "به گزارش آسوشیتدپرس، در گزارشی محرمانه از آژانس بین‌المللی انرژی اتمی آمده است که جمهوری اسلامی به این آژانس گفته است تا هنگامی که با تهدید نظامی روبه‌روست، گفت‌وگو درباره‌ی نظارت بر برنامه‌ی هسته‌ای از سر گرفته نمی‌شود. بازرسان سازمان ملل از آغاز جنگ هوایی در بهمن‌ماه دسترسی کامل به تأسیسات هسته‌ای نداشته‌اند. این گزارش پیش از نشست شورای حکام آژانس منتشر شده است."
+   "body": "به گزارش آسوشیتدپرس، در گزارشی محرمانه از آژانس بین‌المللی انرژی اتمی که این خبرگزاری به آن دست یافته، آمده است که جمهوری اسلامی به این آژانس گفته است تا هنگامی که با تهدید نظامی روبه‌روست، گفت‌وگو درباره‌ی نظارت بر برنامه‌ی هسته‌ای از سر گرفته نمی‌شود. همزمان، جمهوری اسلامی همچنان به کشتی‌ها هشدار می‌دهد که بدونِ اجازه‌ی آن از تنگه‌ی هرمز نگذرند."
   },
   {
    "title": "کاخ سفید از پاسخ به پرسش درباره‌ی پایان گفت‌وگو با جمهوری اسلامی خودداری کرد",
@@ -15,9 +15,21 @@
   }
  ],
  "sources": [
-  {"name": "رویترز، به گزارش جی‌کاپیتان", "url": "https://gcaptain.com/iran-says-tanker-carrying-lng-hit-mine-suffered-explosion-in-hormuz/"},
-  {"name": "آسوشیتدپرس", "url": "https://abcnews.com/International/wireStory/irans-revolutionary-guard-destroyed-us-radar-bahrain-mideast-138102943"},
-  {"name": "آسوشیتدپرس، به گزارش واشینگتن‌پست", "url": "https://www.washingtonpost.com/world/2026/11/13/iran-nuclear-weapons-inspections-monitoring-bushehr-war/dd6ad2d6-df4a-11f1-912c-4fbb80d73f7f_story.html"},
-  {"name": "ای‌بی‌سی نیوز", "url": "https://abcnews.com/International/live-updates/iran-live-updates-americans-tired-forever-wars-araghchi/?id=137967256"}
+  {
+   "name": "رویترز، به گزارش جی‌کاپیتان",
+   "url": "https://gcaptain.com/iran-says-tanker-carrying-lng-hit-mine-suffered-explosion-in-hormuz/"
+  },
+  {
+   "name": "آسوشیتدپرس",
+   "url": "https://abcnews.com/International/wireStory/irans-revolutionary-guard-destroyed-us-radar-bahrain-mideast-138102943"
+  },
+  {
+   "name": "آسوشیتدپرس، به گزارش واشینگتن‌پست",
+   "url": "https://www.washingtonpost.com/world/2026/11/13/iran-nuclear-weapons-inspections-monitoring-bushehr-war/dd6ad2d6-df4a-11f1-912c-4fbb80d73f7f_story.html"
+  },
+  {
+   "name": "ای‌بی‌سی نیوز",
+   "url": "https://abcnews.com/International/live-updates/iran-live-updates-americans-tired-forever-wars-araghchi/?id=137967256"
+  }
  ]
 }
