@@ -1,6 +1,8 @@
 """واژه‌های ایرانا (نام‌های جغرافیایی، نفت و گاز ایران) را در خبرنامه، پیش از رادیو، تلویزیون، تارنما و شبکه‌ها، درست می‌کند (پشتیبانِ tools/rules.md).
 اجرا: python3 tools/terms.py bulletin/latest.json"""
-import json, re, sys
+import json, os, re, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from dates import fix_dates  # noqa: E402
 
 ZW = "[\\s\u200c\u0650]*"          # فاصله، نیم‌فاصله یا کسره
 ARAB = rf"قطر|عربستان{ZW}سعودی|عربستان|بحرین|عمان|کویت|امارات(?:{ZW}متحده{ZW}عربی)?"
@@ -55,6 +57,7 @@ def own_trade(sentence):
 def fix(text):
     for pat, rep in TERMS:
         text = re.sub(pat, rep, text)
+    text = fix_dates(text)                          # تاریخ‌ها بر پایه‌ی گاهنامه‌ی ایرانی
     return "".join(own_trade(p) for p in re.split(r"(?<=[.!؟?؛])", text))
 
 
