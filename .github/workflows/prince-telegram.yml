@@ -1,5 +1,5 @@
-name: تلگرام شهریار ایران — خواندن هر ساعت
-# واپسین پیام‌های t.me/OfficialRezaPahlavi را در bulletin/prince_telegram.json می‌گذارد،
+name: تلگرام، اِکس و اینستاگرام شهریار ایران — خواندن هر ساعت
+# واپسین پیام‌های تلگرام، اِکس و اینستاگرام ایشان را در bulletin/prince_feeds.json (و تلگرام در prince_telegram.json) می‌گذارد،
 # پیش از آنکه نویسنده‌ی خبرنامه (هر ساعت، دقیقه‌ی ۳۵ تهران) کار کند.
 on:
   schedule:
@@ -16,10 +16,19 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
-      - run: python3 tools/prince_tg.py bulletin/prince_telegram.json
+      - run: python3 tools/prince_tg.py bulletin/prince_telegram.json || true
+      - name: اِکس و اینستاگرام (و تلگرام)
+        env:
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID || '17841441006602757' }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+        run: python3 tools/prince_feeds.py bulletin/prince_feeds.json
       - name: ثبت
         run: |
-          git add bulletin/prince_telegram.json
+          git add bulletin/prince_telegram.json bulletin/prince_feeds.json
           if git diff --cached --quiet; then echo "بی‌تغییر"; exit 0; fi
-          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "تلگرام شهریار ایران [skip ci]"
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "پیام‌های شهریار ایران (تلگرام، اِکس، اینستاگرام) [skip ci]"
           for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
