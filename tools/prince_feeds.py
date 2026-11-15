@@ -7,7 +7,7 @@ bulletin/prince_feeds.json می‌نویسد تا نویسنده‌ی خبرنا
 - اینستاگرام: Business Discovery در Graph API، با کلید صفحه‌ی ایرانا (META_PAGE_TOKEN، IG_USER_ID)
 - اِکس: X API با کلیدهای X_* اگر باشند؛ وگرنه نمای همگانی syndication
 اجرا: python3 tools/prince_feeds.py bulletin/prince_feeds.json"""
-import json, os, re, sys, urllib.parse, urllib.request
+import json, os, re, sys, urllib.error, urllib.parse, urllib.request
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
@@ -21,8 +21,13 @@ UA = {"User-Agent": "Mozilla/5.0 (IranaMedia bulletin bot)"}
 
 
 def get_json(url, headers=None):
-    with urllib.request.urlopen(urllib.request.Request(url, headers={**UA, **(headers or {})}), timeout=30) as r:
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={**UA, **(headers or {})}), timeout=30) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")
+        body = re.sub(r"access_token=[^&\s\"]+", "access_token=***", body)
+        raise RuntimeError(f"HTTP {e.code}: {body[:300]}") from None
 
 
 def telegram():
@@ -44,7 +49,8 @@ def instagram():
         try:
             d = get_json(url)["business_discovery"]
         except Exception as e:
-            last = e
+            last = f"{user}: {e}"
+            print("  اینستاگرام", last[:300])
             continue
         return [{"platform": "instagram", "account": d.get("username"), "url": m.get("permalink"),
                  "time": m.get("timestamp", ""), "video": m.get("media_type") in ("VIDEO", "REELS"),
