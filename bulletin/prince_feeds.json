@@ -111,6 +111,6 @@
  ],
  "errors": {
   "x": "HTTP Error 429: Too Many Requests",
-  "instagram": "اینستاگرام: HTTP Error 400: Bad Request"
+  "instagram": "اینستاگرام: reza.pahlavi: HTTP 400: {\"error\":{\"message\":\"(#10) Application does not have permission for this action\",\"type\":\"OAuthException\",\"code\":10,\"fbtrace_id\":\"AF5US52Q94TZSPw-gslACHr\"}}"
  }
 }
