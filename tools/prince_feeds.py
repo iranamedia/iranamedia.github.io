@@ -84,13 +84,46 @@ def x_public():
     return out[:KEEP]
 
 
+def x_rss():
+    """آینه‌های همگانی اِکس (nitter و مانند آن) که RSS می‌دهند؛ نخستینی که پاسخ دهد."""
+    import html as H
+    last = None
+    for base in os.environ.get("X_MIRRORS", "https://nitter.net,https://xcancel.com,https://nitter.poast.org,https://nitter.privacydev.net").split(","):
+        try:
+            page = fetch(f"{base}/{X_USER}/rss")
+        except Exception as e:
+            last = f"{base}: {e}"
+            continue
+        out = []
+        for it in re.findall(r"<item>(.*?)</item>", page, re.S):
+            title = re.search(r"<title>(.*?)</title>", it, re.S)
+            desc = re.search(r"<description>(.*?)</description>", it, re.S)
+            link = re.search(r"<link>(.*?)</link>", it, re.S)
+            date = re.search(r"<pubDate>(.*?)</pubDate>", it, re.S)
+            text = H.unescape(re.sub(r"<!\[CDATA\[|\]\]>", "", (desc or title).group(1)))
+            text = re.sub(r"<[^>]+>", " ", H.unescape(text)).strip()
+            if text.startswith("RT by") or text.startswith("R to"):
+                continue
+            sid = re.search(r"/status/(\d+)", link.group(1) if link else "")
+            out.append({"platform": "x", "url": f"https://x.com/{X_USER}/status/{sid.group(1)}" if sid else "",
+                        "time": date.group(1).strip() if date else "", "text": text})
+        if out:
+            return out[:KEEP]
+        last = f"{base}: خالی"
+    raise RuntimeError(f"آینه‌های اِکس: {last}")
+
+
 def x():
     if all(os.environ.get(k) for k in ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")):
         try:
             return x_api()
         except Exception as e:
             print("X API:", str(e)[:200])
-    return x_public()
+    try:
+        return x_public()
+    except Exception as e:
+        print("  اِکس (syndication):", str(e)[:200])
+    return x_rss()
 
 
 if __name__ == "__main__":
