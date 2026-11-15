@@ -1,0 +1,25 @@
+name: تلگرام شهریار ایران — خواندن هر ساعت
+# واپسین پیام‌های t.me/OfficialRezaPahlavi را در bulletin/prince_telegram.json می‌گذارد،
+# پیش از آنکه نویسنده‌ی خبرنامه (هر ساعت، دقیقه‌ی ۳۵ تهران) کار کند.
+on:
+  schedule:
+    - cron: "45 * * * *"
+    - cron: "58 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: prince-telegram
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 tools/prince_tg.py bulletin/prince_telegram.json
+      - name: ثبت
+        run: |
+          git add bulletin/prince_telegram.json
+          if git diff --cached --quiet; then echo "بی‌تغییر"; exit 0; fi
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "تلگرام شهریار ایران [skip ci]"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
