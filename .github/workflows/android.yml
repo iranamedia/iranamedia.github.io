@@ -75,5 +75,6 @@ jobs:
           خبرنامه‌ی هر ساعت، رادیو و سیمای ایرانا در یک اپ.
           نصب: فایل را باز کنید و «نصب از این منبع» را بپذیرید.
           دریافت از تارنما: https://iranamedia.github.io/irana.apk"
-          curl -sS -F chat_id="$CHANNEL" -F document=@site/irana.apk\;filename=IranaMedia.apk -F caption="$cap" \
+          cp site/irana.apk "$RUNNER_TEMP/IranaMedia.apk" && ls -la "$RUNNER_TEMP/IranaMedia.apk"
+          curl -sS --form-string chat_id="$CHANNEL" -F "document=@$RUNNER_TEMP/IranaMedia.apk" --form-string caption="$cap" \
             "https://api.telegram.org/bot$TOKEN/sendDocument" | python3 -c "import json,sys;d=json.load(sys.stdin);print('ok' if d.get('ok') else d)"
