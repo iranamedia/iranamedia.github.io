@@ -35,7 +35,7 @@ jobs:
           SEED: ${{ secrets.ANDROID_KEY_SECRET || secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           [ -n "$SEED" ] || { echo "::error::TELEGRAM_BOT_TOKEN نیست"; exit 1; }
-          P=$(printf '%s' "$SEED-irana-android" | sha256sum | cut -c1-40)
+          export P=$(printf '%s' "$SEED-irana-android" | sha256sum | cut -c1-40)
           echo "::add-mask::$P"
           echo "KEYSTORE_PASSWORD=$P" >> "$GITHUB_ENV"
           if [ -f android/irana.keystore.enc ]; then
