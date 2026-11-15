@@ -1,0 +1,33 @@
+plugins { id "com.android.application" }
+
+def ver = (System.getenv("APP_VERSION_CODE") ?: "1") as Integer
+
+android {
+    namespace "org.iranamedia.app"
+    compileSdk 35
+    defaultConfig {
+        applicationId "org.iranamedia.app"
+        minSdk 23
+        targetSdk 35
+        versionCode ver
+        versionName "1.0." + ver
+    }
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("KEYSTORE") ?: "irana.keystore")
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias "irana"
+            keyPassword System.getenv("KEYSTORE_PASSWORD")
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

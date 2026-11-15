@@ -1,0 +1,79 @@
+name: اپ اندروید ایرانا (APK)
+# اپ اندروید رسانه ایرانا را می‌سازد و امضا می‌کند، در تارنما (site/irana.apk) و GitHub Releases می‌گذارد
+# و (اگر announce) در کانال تلگرام می‌فرستد.
+# کلید امضا یک بار ساخته می‌شود و رمزگذاری‌شده در android/irana.keystore.enc می‌ماند؛ رمز آن از
+# secrets.TELEGRAM_BOT_TOKEN گرفته می‌شود. (اگر کلید ربات تلگرام دگرگون شود، پیش از آن ANDROID_KEY_SECRET
+# را برابر کلید پیشین بگذارید، وگرنه اپ‌های تازه به‌روزرسانیِ اپ‌های نصب‌شده نخواهند بود.)
+on:
+  push:
+    paths: ["android/**", "!android/irana.keystore.enc", ".github/workflows/android.yml"]
+  workflow_dispatch:
+    inputs:
+      announce:
+        description: "اپ تازه را در کانال تلگرام هم بفرست"
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: android
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+      - name: کلید امضا
+        env:
+          SEED: ${{ secrets.ANDROID_KEY_SECRET || secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          [ -n "$SEED" ] || { echo "::error::TELEGRAM_BOT_TOKEN نیست"; exit 1; }
+          P=$(printf '%s' "$SEED-irana-android" | sha256sum | cut -c1-40)
+          echo "::add-mask::$P"
+          echo "KEYSTORE_PASSWORD=$P" >> "$GITHUB_ENV"
+          if [ -f android/irana.keystore.enc ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:P -in android/irana.keystore.enc -out "$RUNNER_TEMP/irana.keystore"
+          else
+            keytool -genkeypair -keystore "$RUNNER_TEMP/irana.keystore" -alias irana -keyalg RSA -keysize 3072 -validity 36500 \
+              -storepass "$P" -keypass "$P" -dname "CN=Irana Media, O=Irana Media"
+            openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:P -in "$RUNNER_TEMP/irana.keystore" -out android/irana.keystore.enc
+            echo NEW_KEY=1 >> "$GITHUB_ENV"
+          fi
+          echo "KEYSTORE=$RUNNER_TEMP/irana.keystore" >> "$GITHUB_ENV"
+        shell: bash
+      - name: ساختن APK
+        env:
+          APP_VERSION_CODE: ${{ github.run_number }}
+        run: cd android && gradle --no-daemon assembleRelease
+      - name: در تارنما و Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk site/irana.apk
+          ls -la site/irana.apk
+          git add site/irana.apk android/irana.keystore.enc
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "اپ اندروید ایرانا ۱.۰.${{ github.run_number }}"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
+          cp site/irana.apk "IranaMedia-1.0.${{ github.run_number }}.apk"
+          gh release create "android-1.0.${{ github.run_number }}" "IranaMedia-1.0.${{ github.run_number }}.apk" \
+            --title "رسانه ایرانا — اپ اندروید ۱.۰.${{ github.run_number }}" \
+            --notes "اپ اندروید رسانه ایرانا: خبرنامه‌ی هر ساعت، رادیو و سیمای ایرانا. نصب: فایل APK را باز کنید (نصب از منبع‌های ناشناس را بپذیرید)."
+      - name: فرستادن به کانال تلگرام
+        if: inputs.announce
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHANNEL: ${{ secrets.TELEGRAM_CHANNEL || '@IranaMediaNews' }}
+        run: |
+          cap="📱 اپ اندروید رسانه ایرانا
+          خبرنامه‌ی هر ساعت، رادیو و سیمای ایرانا در یک اپ.
+          نصب: فایل را باز کنید و «نصب از این منبع» را بپذیرید.
+          دریافت از تارنما: https://iranamedia.github.io/irana.apk"
+          curl -sS -F chat_id="$CHANNEL" -F document=@site/irana.apk\;filename=IranaMedia.apk -F caption="$cap" \
+            "https://api.telegram.org/bot$TOKEN/sendDocument" | python3 -c "import json,sys;d=json.load(sys.stdin);print('ok' if d.get('ok') else d)"
