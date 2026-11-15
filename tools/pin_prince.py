@@ -42,8 +42,14 @@ def main(path, prince_path):
     items = b.get("items", [])
     saved = json.load(open(prince_path, encoding="utf-8")) if os.path.exists(prince_path) else {}
     old = saved.get("item", {}).get("title")
+    m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
+    tv = bool(m) and int(m.group(1)) % 24 in VOICED
+    # هر پیام یا رویداد شهریار ایران دست‌کم در یک برنامه‌ی سیما (۸ یا ۲۰) نخست می‌آید:
+    # اگر از رویداد تا این بخش هنوز بخش سیمایی نبوده (کمتر از ۱۲ ساعت؛ ۱۲.۵ با زمان پیش از پخش)، نخست است، حتی پیش از "lead"
+    tv_first = tv and bool(old) and not saved.get("stale") and age_hours(saved) <= 12.5
+    limit = max(window(saved), 12.5) if tv_first else window(saved)
     expired = None
-    if old and not saved.get("stale") and age_hours(saved) > window(saved):
+    if old and not saved.get("stale") and age_hours(saved) > limit:
         # زمان صدر گذشت: خبر می‌تواند بماند، ولی دیگر نخست نیست
         expired = next((it for it in items if it.get("title") == old), None)
         if expired:
@@ -82,7 +88,7 @@ def main(path, prince_path):
     if not mine and os.path.exists(prince_path):
         saved = json.load(open(prince_path, encoding="utf-8"))
         pinned, src, age = saved.get("item"), saved.get("source"), age_hours(saved)
-        if pinned and pinned.get("title") and age <= window(saved) and not saved.get("stale"):
+        if pinned and pinned.get("title") and age <= limit and not saved.get("stale"):
             mine = [pinned]
             if src and src.get("url") and all(x.get("url") != src["url"] for x in b.get("sources", [])):
                 b.setdefault("sources", []).insert(0, src)
@@ -93,9 +99,12 @@ def main(path, prince_path):
     rest = [it for it in items if not is_prince(it) and it not in lead]
     if expired:
         rest.insert(1 if rest else 0, expired)
-    m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
-    cap = 5 if m and int(m.group(1)) % 24 in VOICED else 10
-    b["items"] = (lead + mine + rest)[:cap]
+    cap = 5 if tv else 10
+    if tv_first and mine:
+        print("نخستین برنامه‌ی سیما پس از رویداد شهریار ایران: نخست")
+        b["items"] = (mine + lead + rest)[:cap]
+    else:
+        b["items"] = (lead + mine + rest)[:cap]
     for it in b["items"]:
         it.pop("lead", None)
     json.dump(b, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)

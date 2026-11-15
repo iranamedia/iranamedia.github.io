@@ -8,7 +8,8 @@
 import datetime, json, os, sys, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pin_prince import is_prince, window  # noqa: E402
+import re  # noqa: E402
+from pin_prince import FA, VOICED, age_hours, is_prince, window  # noqa: E402
 
 MAX_HOURS = float(os.environ.get("LEAD_MAX_HOURS", "3"))          # هر خبر دیگر
 URL = os.environ.get("LEAD_URL", "https://iranamedia.github.io/lead.json")
@@ -55,6 +56,9 @@ def main(path, out, prince_path="bulletin/prince.json"):
         hours = (t - since).total_seconds() / 3600
         saved = json.load(open(prince_path, encoding="utf-8")) if os.path.exists(prince_path) else {}
         limit = window(saved) if is_prince(items[0]) else MAX_HOURS
+        m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
+        if is_prince(items[0]) and m and int(m.group(1)) % 24 in VOICED and saved and age_hours(saved) <= 12.5:
+            limit = max(limit, 999)                   # نخستین برنامه‌ی سیما پس از رویداد ایشان: نخست می‌ماند
         if hours > limit and len(items) > 1:
             retired[title] = t.isoformat()
             items.insert(1, items.pop(0))
