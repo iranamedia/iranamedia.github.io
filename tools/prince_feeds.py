@@ -16,7 +16,7 @@ from prince_tg import posts as tg_posts, fetch  # noqa: E402
 
 KEEP = 10
 X_USER = "PahlaviReza"
-IG_USERS = [u for u in os.environ.get("PRINCE_IG", "pahlavireza,rezapahlavi,reza.pahlavi").split(",") if u]
+IG_USERS = [u for u in os.environ.get("PRINCE_IG", "officialrezapahlavi").split(",") if u]
 UA = {"User-Agent": "Mozilla/5.0 (IranaMedia bulletin bot)"}
 
 
