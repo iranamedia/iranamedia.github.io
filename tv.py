@@ -92,6 +92,14 @@ def centered(d, y, text, f, fill):
     d.text((W / 2, y), text, font=f, fill=fill, anchor="ma", direction="rtl", language="fa")
 
 
+def centered3d(d, y, text, f, fill, depth=5):
+    """نوشته‌ی برجسته (سه‌بعدی): چند لایه‌ی تیره در زیر و کنار، سپس رویه‌ی روشن."""
+    for k in range(depth, 0, -1):
+        shade = tuple(int(c * (0.18 + 0.1 * (depth - k) / depth)) for c in fill[:3])
+        d.text((W / 2 + k, y + k), text, font=f, fill=shade, anchor="ma", direction="rtl", language="fa")
+    d.text((W / 2, y), text, font=f, fill=fill, anchor="ma", direction="rtl", language="fa")
+
+
 def wrap(d, text, f, width):
     lines, cur = [], ""
     for w in text.split():
@@ -128,7 +136,7 @@ def slide_title(b, path):
     if os.path.exists(LOGO):
         lg = Image.open(LOGO).convert("RGBA").resize((220, 220), Image.LANCZOS)
         img.alpha_composite(lg, ((W - 220) // 2, 160))
-    centered(d, 395, "تیترهای این بخش", F["meta"], GOLD)
+    centered3d(d, 395, "تیترهای این بخش", F["meta"], GOLD, 4)
     bottom = H - 125                                   # بالای نوار پایین
     for size in (50, 44, 38):                         # تیترها هرگز روی نوار پایین نمی‌روند
         f = font("Bold", size)
@@ -140,7 +148,7 @@ def slide_title(b, path):
     for lines in blocks:
         for line in lines:
             if y + lh > bottom: break
-            centered(d, y, line, f, WHITE); y += lh
+            centered3d(d, y, line, f, WHITE, 4); y += lh
         y += gap
     img.convert("RGB").save(path)
 
@@ -218,7 +226,7 @@ def lower_third(b, path, title, label):
     at_right(d, W - 70, top + 20, label, F["small"], GOLD)
     y = top + 20 + max(52, (H - 100 - top - 20 - len(lines) * 84) // 2)
     for line in lines:
-        centered(d, y, line, F["lower"], WHITE); y += 84
+        centered3d(d, y, line, F["lower"], WHITE, 5); y += 84
     img.save(path)
 
 
@@ -426,6 +434,94 @@ def studio_photo(voice, mood=""):
     return out
 
 
+# ---- نمای سه‌بعدی (۲.۵ بعدی، رایگان): گوینده و استودیو دو لایه‌اند و دوربین آرام پیش می‌رود؛
+# لایه‌ی نزدیک (گوینده، میز) تندتر از لایه‌ی دور (دیوار استودیو) بزرگ و جابه‌جا می‌شود و استودیو کمی مات است.
+DEPTH = os.environ.get("TV_DEPTH", "1") != "0"
+
+
+def _crop_like_studio(im):
+    w, h = im.size
+    ch = int(h * PHOTO_KEEP); cw = min(w, ch * 16 // 9)
+    return im.crop(((w - cw) // 2, 0, (w - cw) // 2 + cw, ch)).resize((W, H), Image.LANCZOS)
+
+
+def _fill(arr, hole):
+    """جای خالی پشت گوینده را با رنگ‌های گرداگرد پر می‌کند (پخش نرم، بی‌نیاز به کتابخانه‌ی دیگر)."""
+    import numpy as np
+    known = (1 - hole)[..., None]
+    out = arr.copy()
+    for div in (6, 16, 48):
+        sz = (max(W // div, 2), max(H // div, 2))
+        a = np.asarray(Image.fromarray(np.clip(arr * known, 0, 255).astype(np.uint8)).resize(sz, Image.BOX).resize((W, H), Image.BICUBIC)).astype(np.float32)
+        k = np.asarray(Image.fromarray((known[..., 0] * 255).astype(np.uint8)).resize(sz, Image.BOX).resize((W, H), Image.BICUBIC)).astype(np.float32)[..., None] / 255
+        est = a / np.maximum(k, 1e-3)
+        good = (k > 0.08)
+        out = np.where((hole[..., None] > 0.5) & good & (known < 0.5), est, out)
+        arr, known = out, np.maximum(known, good.astype(np.float32) * (hole[..., None] > 0.5))
+    return out
+
+
+def depth_layers(voice, mood=""):
+    """(پس‌زمینه‌ی بی‌گوینده، نقاب گوینده) در همان برش عکس استودیو؛ None اگر نقاب نباشد."""
+    tag = f"_{mood}" if mood else ""
+    mask_src = os.path.join(HERE, "assets", f"presenter_{voice}{tag}_person.png")
+    photo = studio_photo(voice, mood)
+    if not (DEPTH and photo and os.path.exists(mask_src)):
+        return None
+    back, mask = os.path.join(OUT, f"depth_back_{voice}{tag}.png"), os.path.join(OUT, f"depth_mask_{voice}{tag}.png")
+    if os.path.exists(back) and os.path.exists(mask):
+        return back, mask
+    import numpy as np
+    from PIL import ImageFilter
+    m = _crop_like_studio(Image.open(mask_src).convert("L"))
+    m.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(2)).save(mask)          # لبه‌ی نرم
+    hole = np.asarray(m.filter(ImageFilter.MaxFilter(31))).astype(np.float32) / 255
+    arr = np.asarray(Image.open(photo).convert("RGB")).astype(np.float32)
+    plate = Image.fromarray(np.clip(_fill(arr, (hole > 0.2).astype(np.float32)), 0, 255).astype(np.uint8))
+    plate.filter(ImageFilter.GaussianBlur(2.5)).save(back)                                     # ژرفای میدان
+    return back, mask
+
+
+def clip_parallax(layers, png, seconds, out):
+    """layers: از دور به نزدیک، هر یک {src, video, mask, zoom, drift}؛ نوار تیتر (png) رویِ همه، بی‌حرکت."""
+    D = max(seconds, 0.5)
+    args, fc, prev, k = [], [], None, 0
+    for L in layers:
+        if L.get("video"):
+            args += ["-i", L["src"]]
+        else:
+            args += ["-framerate", "25", "-loop", "1", "-i", L["src"]]
+        src = f"[{k}:v]fps=25,scale={W}:{H},setsar=1,format=rgba"; k += 1
+        if L.get("mask"):
+            args += ["-framerate", "25", "-loop", "1", "-i", L["mask"]]
+            fc.append(f"[{k}:v]scale={W}:{H},format=gray[m{k}]")
+            src = f"{src}[c{k}];[c{k}][m{k}]alphamerge"; k += 1
+        z, dx = L["zoom"], L.get("drift", 0.0)
+        fc.append(f"{src},tpad=stop_mode=clone:stop_duration=3,"
+                  f"scale=w='2*ceil({W}*(1+{z}*t/{D:.3f})/2)':h=-2:eval=frame,"
+                  f"crop={W}:{H}:x='(iw-{W})*(0.5+{dx}*(t/{D:.3f}-0.5))':y='(ih-{H})*0.42'[l{k}]")
+        fc.append(f"{prev}[l{k}]overlay=0:0:format=auto[o{k}]" if prev else f"[l{k}]null[o{k}]")
+        prev = f"[o{k}]"
+    args += ["-framerate", "25", "-loop", "1", "-i", png]
+    fc.append(f"{prev}[{k}:v]overlay=0:0,format=yuv420p[v]")
+    ff(*args, "-t", f"{seconds:.3f}", "-filter_complex", ";".join(fc), "-map", "[v]", *ENC, "-an", out)
+
+
+def clip_depth(fg, voice, mood, png, seconds, out, video=False):
+    """گوینده (عکس یا گویا) جلوی استودیوی کمی مات، با حرکت سه‌بعدی دوربین. False اگر نشد."""
+    lay = depth_layers(voice, mood)
+    if not lay:
+        return False
+    back, mask = lay
+    try:
+        clip_parallax([{"src": back, "zoom": 0.025, "drift": 0.6},
+                       {"src": fg, "video": video, "mask": mask, "zoom": 0.075, "drift": -0.5}], png, seconds, out)
+        return True
+    except subprocess.CalledProcessError:
+        print("نمای سه‌بعدی نشد؛ نمای ساده", flush=True)
+        return False
+
+
 def clip_presenter(photo, png, seconds, out):
     """عکس استودیوی گوینده با حرکت آرام دوربین (نزدیک‌شدن آهسته)، و نوار تیتر روی آن."""
     frames = max(int(seconds * 25), 1)
@@ -510,6 +606,8 @@ def studio_two():
             lg = Image.open(LOGO).convert("RGBA").resize((300, 300), Image.LANCZOS)
             scr.alpha_composite(lg, ((scr.width - 300) // 2, int(scr.height * 0.12)))
         img.alpha_composite(scr, (sx0, sy0))
+        img.convert("RGB").filter(ImageFilter.GaussianBlur(2)).save(os.path.join(OUT, "studio_two_back.png"))
+        people = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         target_h, desk_top = int(H * 0.54), int(H * 0.72)
         for voice, cx, mp in (("man", int(W * 0.23), masks[0]), ("woman", int(W * 0.77), masks[1])):
             ph = dressed(voice).convert("RGBA")
@@ -521,11 +619,16 @@ def studio_two():
             sh = Image.new("RGBA", ph.size, (0, 0, 0, 0))
             sh.putalpha(ph.getchannel("A").point(lambda a: int(a * 0.45)))
             x, y = cx - ph.width // 2, desk_top + 40 - ph.height
-            img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)), (x + 12, y + 10))
-            img.alpha_composite(ph, (x, y))
-        d = ImageDraw.Draw(img)                        # میز خبر با لبه‌ی زرین
-        d.polygon([(int(W * 0.06), desk_top), (int(W * 0.94), desk_top), (W, H), (0, H)], fill=(14, 26, 58, 255))
-        d.rectangle([int(W * 0.06), desk_top, int(W * 0.94), desk_top + 10], fill=GOLD + (255,))
+            for lay in (img, people):
+                lay.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)), (x + 12, y + 10))
+                lay.alpha_composite(ph, (x, y))
+        people.save(os.path.join(OUT, "studio_two_people.png"))
+        desk = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        for lay in (img, desk):
+            d = ImageDraw.Draw(lay)                    # میز خبر با لبه‌ی زرین
+            d.polygon([(int(W * 0.06), desk_top), (int(W * 0.94), desk_top), (W, H), (0, H)], fill=(14, 26, 58, 255))
+            d.rectangle([int(W * 0.06), desk_top, int(W * 0.94), desk_top + 10], fill=GOLD + (255,))
+        desk.save(os.path.join(OUT, "studio_two_desk.png"))
         img.convert("RGB").save(out)
         return out
     man, woman = studio_photo("man"), studio_photo("woman")
@@ -586,14 +689,29 @@ def clip_talking(video, png, seconds, out):
        *ENC, "-an", out)
 
 
+def _voice_of(photo):
+    m = re.search(r"studio_(man|woman)(?:_(\w+))?\.png$", photo or "")
+    return (m.group(1), m.group(2) or "") if m else (None, "")
+
+
+def still_presenter(photo, png, seconds, out):
+    voice, mood = _voice_of(photo)
+    if voice and clip_depth(photo, voice, mood, png, seconds, out):
+        return
+    clip_presenter(photo, png, seconds, out)
+
+
 def presenter_clip(i, photo, png, seconds, out):
     talk = talk_clip(i)
     if talk:
+        voice, mood = _voice_of(photo)
+        if voice and clip_depth(talk, voice, mood, png, seconds, out, video=True):
+            print(f"shot {i}: گوینده‌ی گویا، سه‌بعدی", flush=True); return
         try:
             clip_talking(talk, png, seconds, out); print(f"shot {i}: گوینده‌ی گویا", flush=True); return
         except subprocess.CalledProcessError:
             pass
-    clip_presenter(photo, png, seconds, out)
+    still_presenter(photo, png, seconds, out)
 
 
 def build():
@@ -612,7 +730,18 @@ def build():
             if lead and two and man:                       # دو گوینده در استودیو، سپس بکتاش تیترها را می‌خواند
                 lt = os.path.join(OUT, "lt_head.png")
                 lower_third(b, lt, "تازه‌ترین رویدادهای ایران", "رسانه ایرانا")
-                clip_presenter(two, lt, lead, out); clips.append(out)
+                lay = [os.path.join(OUT, f"studio_two_{n}.png") for n in ("back", "people", "desk")]
+                try:
+                    if not (DEPTH and all(os.path.exists(x) for x in lay)):
+                        raise subprocess.CalledProcessError(1, "no layers")
+                    clip_parallax([{"src": lay[0], "zoom": 0.03, "drift": 0.5},       # دیوار و نمایشگر
+                                   {"src": lay[1], "zoom": 0.07, "drift": -0.3},      # گوینده‌ها
+                                   {"src": lay[2], "zoom": 0.12, "drift": -0.6}],     # میز (نزدیک‌ترین)
+                                  lt, lead, out)
+                    print("نمای دو گوینده: سه‌بعدی", flush=True)
+                except subprocess.CalledProcessError:
+                    clip_presenter(two, lt, lead, out)
+                clips.append(out)
                 if on_cam:
                     out = os.path.join(OUT, f"shot_{i:02d}m.mp4")
                     lower_third(b, lt, b["items"][0]["title"] if b["items"] else "تیترهای این بخش", "تیترهای این بخش")
@@ -636,7 +765,7 @@ def build():
                 if on_cam < seconds - 0.05:                 # گوینده‌ی گویا، سپس عکس با حرکت آرام
                     presenter_clip(i, photo, png, on_cam, out); clips.append(out)
                     out = os.path.join(OUT, f"shot_{i:02d}b.mp4")
-                    clip_presenter(photo, png, seconds - on_cam, out)
+                    still_presenter(photo, png, seconds - on_cam, out)
                 else:
                     presenter_clip(i, photo, png, seconds, out)
             else:
