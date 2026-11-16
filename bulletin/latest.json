@@ -1,9 +1,9 @@
 {
- "stamp": "ساعت ۶ به وقت تهران، دوشنبه ۲۵ آبان سال ۲۵۸۵",
+ "stamp": "ساعت ۷ به وقت تهران، دوشنبه ۲۵ آبان سال ۲۵۸۵",
  "items": [
   {
-   "title": "سپاه پاسداران انقلاب اسلامی: یک ابرنفتکش با بیش از دو میلیون بشکه نفت خام در آبراه پارس غرق شد",
-   "body": "به گزارش خبرگزاری فرانسه، سپاه پاسداران انقلاب اسلامی مدعی شد یک ابرنفتکش با بیش از دو میلیون بشکه نفت خام پس از برخورد با مین و آتش‌سوزی در تنگه‌ی هرمز، در جنوب آبراه پارس غرق شده است. سپاه گفت این نفتکش یکی از دو نفتکشی بود که از «مسیر غیرمجاز» گذشتند و به مین برخوردند؛ نام و پرچم آن‌ها گفته نشد. این ادعا به‌طور مستقل تأیید نشده است. مرکز عملیات تجارت دریایی بریتانیا گفت خدمه سالم‌اند و آسیب و پیامد زیست‌محیطی هنوز روشن نیست."
+   "title": "نیروی دریایی ارتش جمهوری اسلامی: یک نفتکش در شرق تنگه‌ی هرمز به مین خورد و آتش گرفت",
+   "body": "به گزارش رویترز، نیروی دریایی ارتش جمهوری اسلامی شامگاه یکشنبه ۲۴ آبان به نقل از رسانه‌های حکومتی گفت یک نفتکش پس از برخورد با مین دریایی در شرق تنگه‌ی هرمز آتش گرفته است. به گفته‌ی نیروی دریایی، این نفتکش در منطقه‌ی ممنوعه بود و سامانه‌های ناوبری خود را خاموش کرده بود؛ رویترز گفت نتوانسته این گزارش را به‌طور مستقل تأیید کند. پیش‌تر سپاه پاسداران انقلاب اسلامی مدعی شده بود یک ابرنفتکش با بیش از دو میلیون بشکه نفت خام پس از برخورد با مین در جنوب آبراه پارس غرق شده است؛ این ادعا نیز به‌طور مستقل تأیید نشده است. نیروی دریایی ارتش جمهوری اسلامی هشدار داد کشتی‌هایی که بدونِ هماهنگی با آن وارد منطقه‌های ممنوعه شوند، با پیامدی همانند روبه‌رو خواهند شد."
   },
   {
    "title": "رویترز: ترامپ تعلیق حمله‌ها به جمهوری اسلامی را بررسی می‌کند",
@@ -31,12 +31,37 @@
   }
  ],
  "sources": [
-  {"name": "عرب‌نیوز (خبرگزاری فرانسه)", "url": "https://www.arabnews.com/middle-east/iran-says-supertanker-with-2-million-barrels-of-oil-sank-in-gulf-3012053"},
-  {"name": "APA (رویترز)", "url": "https://en.apa.az/america/reuters-trump-may-temporarily-suspend-strikes-on-iran-536188"},
-  {"name": "گلف‌نیوز", "url": "https://gulfnews.com/world/mena/middle-east-conflict-saudi-arabia-intercepts-houthi-missiles-targeting-riyadh-as-bahrain-issues-threat-alert-1.500747797"},
-  {"name": "هەنگاو", "url": "https://hengaw.org/en/content/news-execution-2026-11-15-18213"},
-  {"name": "هەنگاو", "url": "https://hengaw.org/en/content/news-detention-2026-11-15-18212"},
-  {"name": "ANI", "url": "https://www.aninews.in/news/world/us/g7-foreign-ministers-condemn-iranian-maritime-aggression-and-houthi-strikes-reaffirm-backing-for-ukraine20261115222924/"},
-  {"name": "تلگرام رسمی شهریار ایران", "url": "https://t.me/OfficialRezaPahlavi/1915"}
+  {
+   "name": "عرب‌نیوز (رویترز)",
+   "url": "https://arabnews.com/middle-east/irans-navy-says-oil-tanker-on-fire-after-hitting-mine-east-of-hormuz-3012121"
+  },
+  {
+   "name": "عرب‌نیوز (خبرگزاری فرانسه)",
+   "url": "https://www.arabnews.com/middle-east/iran-says-supertanker-with-2-million-barrels-of-oil-sank-in-gulf-3012053"
+  },
+  {
+   "name": "APA (رویترز)",
+   "url": "https://en.apa.az/america/reuters-trump-may-temporarily-suspend-strikes-on-iran-536188"
+  },
+  {
+   "name": "گلف‌نیوز",
+   "url": "https://gulfnews.com/world/mena/middle-east-conflict-saudi-arabia-intercepts-houthi-missiles-targeting-riyadh-as-bahrain-issues-threat-alert-1.500747797"
+  },
+  {
+   "name": "هەنگاو",
+   "url": "https://hengaw.org/en/content/news-execution-2026-11-15-18213"
+  },
+  {
+   "name": "هەنگاو",
+   "url": "https://hengaw.org/en/content/news-detention-2026-11-15-18212"
+  },
+  {
+   "name": "ANI",
+   "url": "https://www.aninews.in/news/world/us/g7-foreign-ministers-condemn-iranian-maritime-aggression-and-houthi-strikes-reaffirm-backing-for-ukraine20261115222924/"
+  },
+  {
+   "name": "تلگرام رسمی شهریار ایران",
+   "url": "https://t.me/OfficialRezaPahlavi/1915"
+  }
  ]
 }
