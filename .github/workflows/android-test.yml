@@ -1,0 +1,45 @@
+name: آزمون اپ اندروید (شبیه‌ساز)
+# اپ را در یک گوشی اندروید شبیه‌سازی‌شده نصب و باز می‌کند، از صفحه عکس می‌گیرد و
+# عکس‌ها و گزارش را در شاخه‌ی talking-test می‌گذارد.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            mkdir -p out
+            adb install -r site/irana.apk
+            adb logcat -c
+            adb shell am start -n org.iranamedia.app/.MainActivity
+            sleep 35
+            adb exec-out screencap -p > out/1_open.png
+            adb shell input swipe 540 1800 540 600 400
+            sleep 4
+            adb exec-out screencap -p > out/2_scroll.png
+            adb shell input keyevent KEYCODE_HOME
+            sleep 2
+            adb exec-out screencap -p > out/3_home.png
+            adb logcat -d -s AndroidRuntime:E chromium:E | tail -50 > out/crash.txt || true
+            adb shell pidof org.iranamedia.app > out/pid.txt || echo "not running" > out/pid.txt
+      - name: نگه‌داری
+        if: always()
+        run: |
+          cd out && git init -q && git checkout -q -b talking-test
+          git add -A && git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "آزمون اپ اندروید"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" talking-test
