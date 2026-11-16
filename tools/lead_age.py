@@ -59,6 +59,9 @@ def main(path, out, prince_path="bulletin/prince.json"):
         m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
         if is_prince(items[0]) and m and int(m.group(1)) % 24 in VOICED and saved and age_hours(saved) <= 12.5:
             limit = max(limit, 999)                   # نخستین برنامه‌ی سیما پس از رویداد ایشان: نخست می‌ماند
+        pin = parse(saved.get("pin_until", "")) if saved else None
+        if is_prince(items[0]) and pin and pin > t:
+            limit = max(limit, 999)                   # به خواست رسانه تا pin_until نخست است
         if hours > limit and len(items) > 1:
             retired[title] = t.isoformat()
             items.insert(1, items.pop(0))
