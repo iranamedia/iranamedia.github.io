@@ -275,6 +275,38 @@ def join(files, out):
 PRINCE = re.compile(r"شهریار\s*ایران|رضا\s*پهلوی|شاهزاده\s*رضا|رضا\s*شاه\s*دوم|رضاشاه\s*دوم")
 
 
+CLIP_MAX = float(os.environ.get("PRINCE_CLIP_MAX", "35"))   # بیشترین درازای تکه‌ی پیام ویدیویی (ثانیه)
+
+
+def prince_clip(b):
+    """تکه‌ای از واپسین پیام ویدیویی شهریار ایران که رسانه به ربات فرستاده (assets/prince، bulletin/bot_inbox.json)،
+    اگر خبر ایشان نخست است و ویدیو در ۴۸ ساعت گذشته رسیده. (path, start, length) یا None."""
+    if not b.get("items") or not prince_lead(b):
+        return None
+    inbox = os.path.join(os.path.dirname(ASSETS), "bulletin", "bot_inbox.json")
+    try:
+        files = json.load(open(inbox, encoding="utf-8")).get("files", [])
+    except (OSError, ValueError):
+        return None
+    now = datetime.datetime.now(datetime.timezone.utc)
+    for meta in reversed(files):
+        path = os.path.join(ASSETS, "prince", meta.get("file", ""))
+        if not meta.get("file", "").endswith(".mp4") or not os.path.exists(path):
+            continue
+        try:
+            got = datetime.datetime.fromisoformat(meta["received"])
+        except (KeyError, ValueError):
+            continue
+        if (now - got).total_seconds() > 48 * 3600:
+            return None
+        total = dur(path)
+        start = min(float(meta.get("start", 0)), max(total - 1, 0))
+        end = float(meta.get("end", 0)) or total
+        length = max(0.0, min(end - start, CLIP_MAX, total - start))
+        return (path, start, length) if length >= 3 else None
+    return None
+
+
 def prince_lead(b):
     """اگر خبر نخست از شهریار ایران است، همان خبر؛ وگرنه None."""
     it = (b.get("items") or [None])[0]
@@ -391,6 +423,7 @@ def main(src="bulletin/latest.json", dry=False, mode="all"):
         if os.path.exists(sting):
             norm(sting, P("01_sting.wav")); seq.append(P("01_sting.wav")); timeline.append({"kind": "sting"})
         story_parts = len(parts) - 1                      # واپسین بخش، سخن پایانی است
+        clip = prince_clip(b)
         for n, cs in enumerate(parts):
             if n: seq.append(P("gap.wav")); timeline.append({"kind": "gap"})
             who = "woman" if n % 2 == 0 else "man"      # دو گوینده، یکی در میان
@@ -400,6 +433,17 @@ def main(src="bulletin/latest.json", dry=False, mode="all"):
                 print("tts", n, m, who, len(c), tts(c, P(f + ".mp3"), vid))
                 voice(P(f + ".mp3"), P(f + ".wav")); seq.append(P(f + ".wav"))
                 timeline.append({"kind": "story" if n < story_parts else "outro", "n": n, "voice": who})
+            if n == 0 and clip:                           # تکه‌ای از پیام ویدیویی شهریار ایران، با صدای خودشان
+                cp, ss, ln = clip
+                try:
+                    ff("-ss", f"{ss:.2f}", "-t", f"{ln:.2f}", "-i", cp, "-vn", "-af",
+                       f"afade=t=in:d=0.3,afade=t=out:st={max(ln - 0.5, 0):.2f}:d=0.5",
+                       "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le", P("clip.wav"))
+                    seq += [P("gap.wav"), P("clip.wav")]
+                    timeline += [{"kind": "gap"}, {"kind": "clip", "n": 0, "file": os.path.basename(cp), "ss": round(ss, 2)}]
+                    print("پیام ویدیویی شهریار ایران:", os.path.basename(cp), f"{ln:.0f}s")
+                except subprocess.CalledProcessError:
+                    print("تکه‌ی پیام ویدیویی ساخته نشد")
         promo = os.path.join(ASSETS, "promo.mp3")      # آگهی ایرانا در پایان هر بخش خبری
         if os.path.exists(promo):
             norm(promo, P("90_promo.wav")); seq.append(P("90_promo.wav")); timeline.append({"kind": "promo"})

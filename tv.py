@@ -538,11 +538,22 @@ def clip_over(video, png, seconds, out):
        f"eq=brightness=-0.06:saturation=0.85[bg];[bg][1:v]overlay=0:0", *ENC, "-an", out)
 
 
+def clip_prince_video(path, ss, png, seconds, out):
+    """تکه‌ای از پیام ویدیویی شهریار ایران (ویدیوی ایستاده یا خوابیده)، با پس‌زمینه‌ی مات از خود ویدیو، بی‌صدا
+    (صدای آن در صدای رادیو هست)."""
+    ff("-ss", f"{ss:.2f}", "-i", path, "-loop", "1", "-i", png, "-t", f"{seconds:.3f}", "-filter_complex",
+       f"[0:v]fps=25,split[a][b];[a]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+       f"gblur=sigma=28,eq=brightness=-0.18[bg];[b]scale={W}:{H}:force_original_aspect_ratio=decrease[fg];"
+       f"[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,tpad=stop_mode=clone:stop_duration=10[v];[v][1:v]overlay=0:0",
+       *ENC, "-an", out)
+
+
 def visuals(timeline, n_items):
     """بخش‌های صدا را به نماها تبدیل می‌کند: سرآغاز، هر خبر (با درنگ پس از آن)، سخن پایانی، آگهی."""
     shots = []
     for seg in timeline:
-        key = ("story", seg["n"], seg.get("voice", "man")) if seg["kind"] == "story" and seg["n"] < n_items else \
+        key = ("clip", seg["file"], seg.get("ss", 0)) if seg["kind"] == "clip" else \
+              ("story", seg["n"], seg.get("voice", "man")) if seg["kind"] == "story" and seg["n"] < n_items else \
               ("title",) if seg["kind"] in ("head", "sting") else \
               ("outro", seg.get("voice", "man")) if seg["kind"] in ("outro", "story") else \
               ("end",) if seg["kind"] == "promo" else None
@@ -750,6 +761,14 @@ def build():
                 slide_title(b, png); clip_still(png, seconds - lead - on_cam, out)
             else:
                 slide_title(b, png); clip_still(png, seconds, out)
+        elif key[0] == "clip":
+            path = os.path.join(HERE, "assets", "prince", key[1])
+            lower_third(b, png, b["items"][0]["title"], "پیام ویدیویی شهریار ایران")
+            try:
+                clip_prince_video(path, float(key[2]), png, seconds, out)
+                print(f"shot {i}: پیام ویدیویی شهریار ایران", flush=True)
+            except subprocess.CalledProcessError:
+                slide_story(b, 0, png); clip_still(png, seconds, out)
         elif key[0] == "end":
             if os.path.exists(AD_VIDEO):
                 try:
