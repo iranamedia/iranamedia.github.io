@@ -133,6 +133,8 @@ jobs:
           pip install -q torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cpu
           grep -viE "^(gradio|torch|torchvision|torchaudio)" _sad/requirements.txt > _sad/req.txt
           pip install -q -r _sad/req.txt "pillow>=9.5,<11"
+          python tools/clear_execstack.py          # glibc تازه: torch 1.12 بی‌این بار نمی‌شود
+          python -c "import torch; print('torch', torch.__version__)"
           [ -f _sad/checkpoints/SadTalker_V0.0.2_256.safetensors ] || (cd _sad && bash scripts/download_models.sh)
       - name: گویا کردن بخش ${{ matrix.shot }}
         env:
