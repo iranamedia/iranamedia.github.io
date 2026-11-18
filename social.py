@@ -226,8 +226,41 @@ def title_of(b, limit=100):
     return (lead["title"] if lead else f"رسانه ایرانا | {b['stamp']}")[:limit]
 
 
+# شهرها و استان‌ها: اگر در خبر نخست بیاید، هشتگ می‌شود (بیننده‌ی آن شهر و جست‌وجوگران رویداد)
+PLACES = ("تهران مشهد اصفهان شیراز تبریز کرج اهواز قم کرمانشاه ارومیه رشت زاهدان همدان کرمان یزد اردبیل بندرعباس اراک "
+          "زنجان سنندج قزوین خرم‌آباد گرگان ساری بوشهر بیرجند ایلام شهرکرد یاسوج سمنان بجنورد آبدانان ایذه دهلران "
+          "مهاباد بوکان سقز جوانرود پیرانشهر سراوان چابهار ایرانشهر خاش آبادان خرمشهر ماهشهر دزفول شوشتر بهبهان "
+          "نیشابور سبزوار قوچان کاشان نجف‌آباد لردگان بروجن آمل بابل قائمشهر لاهیجان انزلی اسلامشهر کیش قشم "
+          "خوزستان کردستان سیستان بلوچستان لرستان گیلان مازندران آذربایجان خراسان").split()
+TOPIC_TAGS = ((r"اعدام", "#نه_به_اعدام #StopExecutionsInIran"),
+              (r"بازداشت|زندانی|زندان", "#زندانیان_سیاسی"),
+              (r"اعتراض|خیزش|تجمع|شعار", "#اعتراضات_ایران #IranProtests"),
+              (r"اعتصاب", "#اعتصاب"))
+
+
+def hashtags(b, limit=12):
+    """هشتگ‌های هر پست از خود خبر: شهریار ایران، شهر یا استان رویداد، موضوع؛ سپس هشتگ‌های همیشگی ایرانا."""
+    it = (b.get("items") or [{}])[0]
+    text = it.get("title", "") + " " + it.get("body", "")
+    tags = ["#ایران", "#Iran"]
+    if prince_lead(b):
+        tags += ["#شهریار_ایران", "#شاهزاده_رضا_پهلوی", "#RezaPahlavi"]
+    for place in PLACES:
+        if re.search(rf"(?<![\w\u200c]){place}(?![\w\u200c])", text):
+            tags.append("#" + place.replace("\u200c", "_"))
+    for pat, t in TOPIC_TAGS:
+        if re.search(pat, text):
+            tags += t.split()
+    tags += TAGS.split()
+    out = []
+    for t in tags:
+        if t not in out:
+            out.append(t)
+    return " ".join(out[:limit])
+
+
 def caption(b, limit=2000, tags=True):
-    tail = f"\n\n🔊 تلگرام: {CHANNEL}\n📱 اپ: {APP}" + (f"\n\n{TAGS}" if tags else "")
+    tail = f"\n\n🔊 تلگرام: {CHANNEL}\n📱 اپ: {APP}" + (f"\n\n{hashtags(b)}" if tags else "")
     lead = prince_lead(b)
     if lead:                                           # زیرنویس: تیتر و خبر شهریار ایران
         head = f"🎙 {lead['title']}\n\n{lead.get('body', '')}\n\nرسانه ایرانا · {b['stamp']}\n\n"
@@ -366,7 +399,16 @@ def instagram(b, mp4):
 
 # ---------- یوتیوب ----------
 
-def youtube(b, mp4):
+def make_short(tall):
+    """ویدیوی کوتاه ایستاده (Shorts/Reels) که tv.py از خبر نخست ساخته (irana-short.mp4، کمتر از یک دقیقه)."""
+    path = os.path.join(os.path.dirname(tall), "irana-short.mp4") if tall else ""
+    if path and os.path.exists(path):
+        print("short:", path, os.path.getsize(path) // 1024, "KB", flush=True)
+        return path
+    return None
+
+
+def youtube(b, mp4, short=False):
     cid, sec, ref = (os.environ.get(k) for k in ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"))
     if not (cid and sec and ref): return "skip"
     tok = jcall("POST", "https://oauth2.googleapis.com/token", data=urllib.parse.urlencode({
@@ -374,10 +416,12 @@ def youtube(b, mp4):
         headers={"Content-Type": "application/x-www-form-urlencoded"})["access_token"]
     SECRETS.append(tok)
     size = os.path.getsize(mp4)
-    meta = {"snippet": {"title": title_of(b, 100),
+    lead = (b.get("items") or [{}])[0].get("title", "")
+    title = (lead[:88] + " #Shorts") if short else title_of(b, 100)
+    meta = {"snippet": {"title": title,
                         "description": caption(b, 4500).replace("<", "‹").replace(">", "›"),
                         "categoryId": "25", "defaultLanguage": "fa", "defaultAudioLanguage": "fa",
-                        "tags": ["ایران", "رسانه ایرانا", "Iranamedia", "خبر"]},
+                        "tags": ["ایران", "رسانه ایرانا", "Iranamedia", "خبر"] + [t.lstrip("#").replace("_", " ") for t in hashtags(b).split()]},
             "status": {"privacyStatus": os.environ.get("YT_PRIVACY", "public"), "selfDeclaredMadeForKids": False}}
     _, hdr, _ = http("POST", "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
                      json.dumps(meta).encode(),
@@ -466,20 +510,28 @@ def main():
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-t", "90", "-c", "copy",
                     "-movflags", "+faststart", clip], check=True)
     print("video", os.path.getsize(mp4) // 1024, "KB")
+    short = None
+    try:
+        short = make_short(tv_tall)
+    except Exception as e:
+        print("short: ساخته نشد", clean(e)[:200], flush=True)
+    if short:
+        clip = short                                    # اینستاگرام و ایکس: خبر نخست، نه آغاز برنامه
     if "--video-only" in sys.argv: return
     failed = []
     import datetime
     yt_every = int(os.environ.get("YT_EVERY", "1"))     # سقف آپلود روزانه‌ی یوتیوب: هر چند ساعت یک ویدیو
     yt_turn = datetime.datetime.utcnow().hour % max(yt_every, 1) == 0
     for name, fn in (("Facebook", lambda: facebook(b, mp4)), ("Instagram", lambda: instagram(b, clip)),
-                     ("YouTube", lambda: youtube(b, mp4w)), ("X", lambda: x_post(b, mp4, clip))):
-        if name == "YouTube" and not yt_turn:
+                     ("YouTube", lambda: youtube(b, mp4w)), ("YouTube Shorts", lambda: youtube(b, short, True) if short else "skip"),
+                     ("X", lambda: x_post(b, mp4, clip))):
+        if name.startswith("YouTube") and not yt_turn:
             print("YouTube: skipped (نوبت این ساعت نیست)", flush=True); continue
         try:
             print(f"{name}: {fn()}", flush=True)
         except Exception as e:
             msg = clean(e).replace("\n", " ")[:900]
-            if name == "YouTube" and "uploadLimitExceeded" in msg:
+            if name.startswith("YouTube") and ("uploadLimitExceeded" in msg or "quotaExceeded" in msg):
                 print(f"::warning title=YouTube::سقف آپلود روزانه پر است؛ نوبت بعد", flush=True)
                 continue
             print(f"::error title={name}::{msg}", flush=True)

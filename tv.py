@@ -538,6 +538,69 @@ def clip_over(video, png, seconds, out):
        f"eq=brightness=-0.06:saturation=0.85[bg];[bg][1:v]overlay=0:0", *ENC, "-an", out)
 
 
+# ---- ویدیوی کوتاه (یوتیوب Shorts، اینستاگرام Reels): خبر نخست، ایستاده، کمتر از یک دقیقه ----
+SHORT_MAX = 58.0
+
+
+def short_overlay(b, path):
+    """قاب ایستاده‌ی ۱۰۸۰×۱۹۲۰: نشان و تیتر درشت در بالا، دعوت به دنبال کردن در پایین؛ میانه برای ویدیو."""
+    SW, SH = 1080, 1920
+    img = Image.new("RGBA", (SW, SH), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, SW, 640], fill=(8, 16, 40, 235))
+    d.rectangle([0, 632, SW, 640], fill=GOLD + (255,))
+    if os.path.exists(LOGO):
+        lg = Image.open(LOGO).convert("RGBA").resize((96, 96), Image.LANCZOS)
+        img.alpha_composite(lg, (SW - 150, 48))
+    d.text((SW - 170, 70), "رسانه ایرانا", font=font("Black", 52), fill=GOLD, anchor="ra", direction="rtl", language="fa")
+    d.text((60, 82), "خبر نخست", font=font("Bold", 40), fill=(220, 225, 235), anchor="la", direction="rtl", language="fa")
+    title = b["items"][0]["title"] if b.get("items") else b["stamp"]
+    for size in (68, 60, 52, 46):
+        f = font("Black", size)
+        lines = wrap(d, title, f, SW - 120)
+        if len(lines) * size * 1.45 <= 430:
+            break
+    y = 190 + (430 - len(lines) * size * 1.45) / 2
+    for line in lines:
+        for k in range(4, 0, -1):
+            d.text((SW / 2 + k, y + k), line, font=f, fill=(15, 25, 55), anchor="ma", direction="rtl", language="fa")
+        d.text((SW / 2, y), line, font=f, fill=WHITE, anchor="ma", direction="rtl", language="fa")
+        y += size * 1.45
+    d.rectangle([0, 1268, SW, SH], fill=(8, 16, 40, 235))
+    d.rectangle([0, 1268, SW, 1276], fill=GOLD + (255,))
+    d.text((SW / 2, 1330), b["stamp"], font=font("Bold", 38), fill=(210, 215, 228), anchor="ma", direction="rtl", language="fa")
+    d.text((SW / 2, 1440), "خبرهای ایران، سر هر ساعت", font=font("Black", 56), fill=WHITE, anchor="ma", direction="rtl", language="fa")
+    d.text((SW / 2, 1540), "تلگرام: IranaMediaNews", font=font("Bold", 46), fill=GOLD, anchor="ma", direction="rtl", language="fa")
+    d.text((SW / 2, 1620), "iranamedia.github.io", font=font("Bold", 40), fill=(210, 215, 228), anchor="ma")
+    img.save(path)
+    return path
+
+
+def make_short(b, wide, shots, intro_len):
+    """خبر نخست (و پیام ویدیویی شهریار ایران اگر هست) از ویدیوی افقی، در قاب ایستاده."""
+    first = next((s for s in shots if s["key"][0] == "story" and s["key"][1] == 0), None)
+    if not first:
+        return None
+    end = first["start"] + first["seconds"]
+    for s in shots:                                   # پیام ویدیویی پس از خبر نخست هم در ویدیوی کوتاه
+        if s["key"][0] == "clip" and abs(s["start"] - end) < 4:
+            end = s["start"] + s["seconds"]
+    ss = max(first["start"] + intro_len - 0.3, 0)
+    length = min(SHORT_MAX, end - first["start"] + 0.3)
+    if length < 8:
+        return None
+    ov = short_overlay(b, os.path.join(OUT, "short_overlay.png"))
+    out = os.path.join(OUT, "irana-short.mp4")
+    ff("-ss", f"{ss:.2f}", "-i", wide, "-loop", "1", "-i", ov, "-t", f"{length:.2f}", "-filter_complex",
+       "[0:v]split[a][b];[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=24:2,"
+       "eq=brightness=-0.2[bg];[b]scale=1080:-2[fg];[bg][fg]overlay=0:(H-h)/2[v];[v][1:v]overlay=0:0,format=yuv420p[o];"
+       f"[0:a]afade=t=in:d=0.3,afade=t=out:st={max(length - 0.8, 0):.2f}:d=0.8[au]",
+       "-map", "[o]", "-map", "[au]", *ENC, "-g", "50", "-profile:v", "high", "-c:a", "aac", "-b:a", "128k",
+       "-ar", "48000", "-movflags", "+faststart", out)
+    print(f"ویدیوی کوتاه: {out} {dur(out):.1f}s", flush=True)
+    return out
+
+
 def clip_prince_video(path, ss, png, seconds, out):
     """تکه‌ای از پیام ویدیویی شهریار ایران (ویدیوی ایستاده یا خوابیده)، با پس‌زمینه‌ی مات از خود ویدیو، بی‌صدا
     (صدای آن در صدای رادیو هست)."""
@@ -733,7 +796,8 @@ def build():
     os.makedirs(OUT, exist_ok=True)
     fonts()
     clips = []
-    for sh in plan(b, audio, tl):
+    shots = plan(b, audio, tl)
+    for sh in shots:
         i, key, seconds, on_cam = sh["i"], tuple(sh["key"]), sh["seconds"], sh["on_cam"]
         out, png = os.path.join(OUT, f"shot_{i:02d}.mp4"), os.path.join(OUT, f"shot_{i:02d}.png")
         if key[0] == "title":
@@ -863,6 +927,10 @@ def build():
        *ENC, "-g", "50", "-profile:v", "high", "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
        "-movflags", "+faststart", tall)                    # ویژگی‌هایی که اینستاگرام می‌پذیرد
     print(f"TV: {wide} {dur(wide):.1f}s {os.path.getsize(wide)//1024} KB · {tall}", flush=True)
+    try:
+        make_short(b, wide, shots, (dur(parts[0]) - 1.2) if len(parts) == 2 else 0.0)
+    except Exception as e:                            # ویدیوی کوتاه نشد: برنامه‌ی اصلی می‌ماند
+        print("ویدیوی کوتاه ساخته نشد:", str(e)[:200], flush=True)
     return wide
 
 
