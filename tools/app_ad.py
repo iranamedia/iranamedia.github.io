@@ -230,6 +230,20 @@ if __name__ == "__main__":
     names = sys.argv[2:] or ["auto"]
     if names == ["auto"]:
         avail = female_voices()
+        if not avail and os.environ.get("ELEVENLABS_API_KEY"):     # بی اجازه‌ی فهرست: گوینده‌های زن آشنا را می‌آزماییم
+            cands = [("matilda", "XrExE9yKIg1WjnnlVkGX"), ("sarah", "EXAVITQu4vr4xnSDxMaL"), ("rachel", "21m00Tcm4TlvDq8ikWAM"),
+                     ("alice", "Xb7hH8MSUJpSbSDYk0k2"), ("laura", "FGY2WhTYpPnrIDTdsKH5"), ("jessica", "cgSgspJ2msm6clMCkdW9"),
+                     ("freya", "jsCqWAovK2LkecY7zXl4"), ("grace", "oWAxZDx7w5VEj9dCyTzz"), ("serena", "pMsXgVXv3BLzUgSXRplE"),
+                     ("domi", "AZnzlk1XvdvUeBnXmlld"), ("elli", "MF3mGyEYCl7XYWbV9V6O"), ("dorothy", "ThT5KcBeYPX3keUQqHPh")]
+            os.makedirs(out, exist_ok=True)
+            for nm, vid in cands:
+                try:
+                    tts("سلام", os.path.join(out, "probe.mp3"), vid)
+                    print("گوینده در دسترس:", nm, vid); avail.append((nm, vid))
+                except SystemExit as e:
+                    print("نیست:", nm, str(e)[:80])
+                if len(avail) >= 2:
+                    break
         prefer = ["matilda", "lily", "jessica", "sarah", "alice", "laura", "rachel", "freya", "grace", "serena"]
         avail.sort(key=lambda nv: prefer.index(nv[0]) if nv[0] in prefer else 99)
         pairs = avail[:2]
