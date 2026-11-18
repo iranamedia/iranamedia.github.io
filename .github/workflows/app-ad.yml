@@ -1,0 +1,69 @@
+name: آگهی اپ ایرانا
+# آگهی ویدیویی اپ رسانه ایرانا را با گوینده‌ی زن (ElevenLabs) می‌سازد و در شاخه‌ی talking-test می‌گذارد؛
+# اگر publish، نسخه‌ی ایستاده را با دکمه‌ی «دریافت اپ ایرانا» در کانال تلگرام می‌فرستد.
+on:
+  workflow_dispatch:
+    inputs:
+      voices:
+        description: "گوینده‌ها (lily، jessica یا شناسه‌ی ElevenLabs)، با فاصله"
+        default: "lily jessica"
+      publish:
+        description: "در کانال تلگرام بفرست (تنها با یک گوینده)"
+        type: boolean
+        default: false
+permissions:
+  contents: write
+env:
+  TOOLS_VERSION: "2026-11-11"
+  FFMPEG_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+jobs:
+  ad:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .tools
+            assets/fonts
+          key: irana-publish-tools-${{ env.TOOLS_VERSION }}
+      - name: ابزارها
+        run: |
+          if [ ! -x .tools/ffmpeg ]; then
+            curl -sSfL --retry 3 -o ff.tar.xz "$FFMPEG_URL"
+            tar -xf ff.tar.xz && mkdir -p .tools && cp ffmpeg-master-latest-linux64-gpl/bin/ff* .tools/ && rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
+          fi
+          sudo cp .tools/ff* /usr/local/bin/
+          python3 -c "from PIL import features; assert features.check('raqm')" 2>/dev/null || (sudo apt-get install -y -q libraqm0 >/dev/null || true)
+          pip install -q --break-system-packages pillow numpy "qrcode[pil]"
+          mkdir -p assets/fonts
+          for w in Black Bold Medium; do
+            [ -s assets/fonts/Vazirmatn-$w.ttf ] && continue
+            curl -sSfL -o assets/fonts/Vazirmatn-$w.ttf https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-$w.ttf
+          done
+      - name: ساختن آگهی
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: python3 tools/app_ad.py _ad ${{ inputs.voices }}
+      - name: برای بازبینی (شاخه‌ی talking-test)
+        run: |
+          mkdir -p out && cp _ad/*.mp4 out/
+          cd out && git init -q && git checkout -q -b talking-test
+          git add -A && git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "آگهی اپ ایرانا"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" talking-test
+      - name: کانال تلگرام، با دکمه‌ی دریافت
+        if: inputs.publish
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHANNEL: ${{ secrets.TELEGRAM_CHANNEL || '@IranaMediaNews' }}
+        run: |
+          v=$(ls _ad/app-ad-*-tall.mp4 | head -1)
+          cap="📱 اپ رسانه ایرانا
+          خبرهای ایران سر هر ساعت، رادیو و سیمای ایرانا و پیام‌های شهریار ایران؛ همه در یک اپ.
+          دریافت: https://iranamedia.github.io/irana.apk
+          (اندروید · آیفون: تارنما را در Safari به صفحه‌ی خانه بیفزایید)"
+          kb='{"inline_keyboard":[[{"text":"📱 دریافت اپ ایرانا","url":"https://iranamedia.github.io/irana.apk"}],[{"text":"🌐 تارنمای ایرانا","url":"https://iranamedia.github.io/"}]]}'
+          curl -sS --form-string chat_id="$CHANNEL" -F "video=@$v" -F supports_streaming=true -F width=1080 -F height=1920 \
+            --form-string caption="$cap" --form-string reply_markup="$kb" \
+            "https://api.telegram.org/bot$TOKEN/sendVideo" | python3 -c "import json,sys;d=json.load(sys.stdin);print('ok' if d.get('ok') else d)"
