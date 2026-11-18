@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
     inputs:
       voices:
-        description: "گوینده‌ها (lily، jessica یا شناسه‌ی ElevenLabs)، با فاصله"
-        default: "lily jessica"
+        description: "گوینده‌ها: auto (دو گوینده‌ی زن در دسترس) یا نام/شناسه‌ی ElevenLabs، با فاصله"
+        default: "auto"
       publish:
         description: "در کانال تلگرام بفرست (تنها با یک گوینده)"
         type: boolean

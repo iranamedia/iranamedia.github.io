@@ -204,9 +204,38 @@ def build(out, voice_name, voice_id):
     return made
 
 
+def female_voices(skip=("XB0fDUnXU5powFXDhCwa",)):
+    """گوینده‌های زن در دسترس این حساب ElevenLabs (جز شارلوت که گوینده‌ی سیماست)."""
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        return []
+    try:
+        with urllib.request.urlopen(urllib.request.Request("https://api.elevenlabs.io/v1/voices", headers={"xi-api-key": key}), timeout=30) as r:
+            vs = json.load(r).get("voices", [])
+    except Exception as e:
+        print("فهرست گوینده‌ها در دسترس نیست:", e)
+        return []
+    out = []
+    for v in vs:
+        lab = v.get("labels") or {}
+        print("voice:", v.get("name"), v.get("voice_id"), lab.get("gender"), lab.get("age"), lab.get("accent"), v.get("category"))
+        if lab.get("gender") == "female" and v.get("voice_id") not in skip:
+            out.append((v.get("name", "").split()[0].lower(), v["voice_id"]))
+    return out
+
+
 if __name__ == "__main__":
     tv.fonts()
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "_ad")
-    names = sys.argv[2:] or list(VOICES)
-    for n in names:
-        build(out, n, VOICES.get(n, n))
+    names = sys.argv[2:] or ["auto"]
+    if names == ["auto"]:
+        avail = female_voices()
+        prefer = ["matilda", "lily", "jessica", "sarah", "alice", "laura", "rachel", "freya", "grace", "serena"]
+        avail.sort(key=lambda nv: prefer.index(nv[0]) if nv[0] in prefer else 99)
+        pairs = avail[:2]
+    else:
+        pairs = [(n, VOICES.get(n, n)) for n in names]
+    if not pairs:
+        raise SystemExit("گوینده‌ی زنی در دسترس نیست")
+    for n, vid in pairs:
+        build(out, n, vid)
