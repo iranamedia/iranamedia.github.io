@@ -1,0 +1,27 @@
+name: صندوق ربات ایرانا — ویدیو و عکس شهریار ایران
+# آنچه رسانه (تنها از حساب‌های پذیرفته‌شده) برای ربات تلگرام ایرانا می‌فرستد — ویدیو یا عکس شهریار ایران —
+# برداشته و در assets/prince گذاشته می‌شود تا در سیما و رادیو به کار رود.
+on:
+  schedule:
+    - cron: "10,40 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: bot-inbox
+jobs:
+  inbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: دریافت
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: python3 tools/bot_inbox.py
+      - name: ثبت
+        run: |
+          git add assets/prince bulletin/bot_inbox.json
+          if git diff --cached --quiet; then echo "چیزی تازه نیست"; exit 0; fi
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "ویدیو یا عکس تازه‌ی شهریار ایران از ربات [skip ci]"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
