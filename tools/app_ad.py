@@ -226,7 +226,7 @@ def female_voices(skip=("XB0fDUnXU5powFXDhCwa",)):
 
 if __name__ == "__main__":
     tv.fonts()
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "_ad")
+    out = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "_ad"))
     names = sys.argv[2:] or ["auto"]
     if names == ["auto"]:
         avail = female_voices()
