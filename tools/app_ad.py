@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFilter  # noqa: E402
 
 URL = "https://iranamedia.github.io/irana.apk"
 SHORT_URL = "iranamedia.github.io/irana.apk"
-VOICES = {"lily": "pFZP5JQG7iQjIQuC4Bue", "jessica": "cgSgspJ2msm6clMCkdW9"}
+VOICES = {"matilda": "XrExE9yKIg1WjnnlVkGX", "sarah": "EXAVITQu4vr4xnSDxMaL"}   # در دسترس این حساب (آزموده)
 SCRIPT = [
     ("intro", "رسانه ایرانا، اکنون در گوشی شما!"),
     ("what", "خبرهای ایران سر هر ساعت، رادیو و سیمای ایرانا، و پیام‌های شهریار ایران؛ همه در یک اپ."),
