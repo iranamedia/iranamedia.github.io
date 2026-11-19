@@ -1,0 +1,73 @@
+name: آزمون گوینده‌ی گویا (یک بخش، از یک اجرای پیشین؛ بی ElevenLabs)
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "شماره‌ی اجرای radio.yml"
+        required: true
+      shot:
+        description: "شماره‌ی بخش گوینده‌دار"
+        default: "1"
+permissions:
+  contents: write
+  actions: read
+env:
+  TOOLS_VERSION: "2026-11-11"
+  FFMPEG_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+jobs:
+  talk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - uses: actions/cache@v4                 # ffmpeg و قلم‌ها یک بار گرفته و نگه داشته می‌شوند (نسخه‌ی آزموده، ثابت)
+        with:
+          path: .tools
+          key: irana-ffmpeg-${{ env.TOOLS_VERSION }}
+      - name: ffmpeg
+        run: |
+          if [ ! -x .tools/ffmpeg ]; then
+            curl -sSfL --retry 3 -o ff.tar.xz "$FFMPEG_URL"
+            tar -xf ff.tar.xz && mkdir -p .tools && cp ffmpeg-master-latest-linux64-gpl/bin/ff* .tools/ && rm -rf ff.tar.xz ffmpeg-master-latest-linux64-gpl
+          fi
+          sudo cp .tools/ff* /usr/local/bin/
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            _sad
+          key: sadtalker-v1
+      - name: SadTalker
+        run: |
+          [ -d _sad/.git ] || git clone --depth 1 https://github.com/OpenTalker/SadTalker _sad
+          pip install -q torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cpu
+          grep -viE "^(gradio|torch|torchvision|torchaudio)" _sad/requirements.txt > _sad/req.txt
+          pip install -q -r _sad/req.txt "pillow>=9.5,<11"
+          python tools/clear_execstack.py          # glibc تازه: torch 1.12 بی‌این بار نمی‌شود
+          python -c "import torch; print('torch', torch.__version__)"
+          [ -f _sad/checkpoints/SadTalker_V0.0.2_256.safetensors ] || (cd _sad && bash scripts/download_models.sh)
+      - name: گویا کردن بخش ${{ inputs.shot }}
+        env:
+          SAVE_DIR: _site
+          TALK_DIR: _talk
+        run: python tools/talk_shot.py ${{ inputs.shot }} _sad
+      - uses: actions/upload-artifact@v4
+        with:
+          name: talk-${{ inputs.shot }}
+          path: _talk/*.mp4
+          retention-days: 1
+      - name: نگه‌داری در talking-test
+        run: |
+          mkdir -p out && cp _talk/*.mp4 out/
+          cd out && git init -q && git checkout -q -b talking-test
+          git add -A && git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "آزمون گوینده‌ی گویا"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" talking-test
+
