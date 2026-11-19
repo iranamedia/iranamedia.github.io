@@ -92,11 +92,12 @@ def main(path, prince_path):
             json.dump(b, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             print("رویداد برگزیده تا", saved["pin_until"], "جای", rank, ":", pinned["title"])
             return
-    if not mine and os.path.exists(prince_path):
-        saved = json.load(open(prince_path, encoding="utf-8"))
+    titles = {it.get("title") for it in mine}
+    if os.path.exists(prince_path) and saved.get("item", {}).get("title") not in titles:
+        # تازه‌ترین رویداد ایشان (prince.json) در خبرنامه نیست: نخست می‌آید؛ خبرهای پیشین ایشان پس از آن
         pinned, src, age = saved.get("item"), saved.get("source"), age_hours(saved)
         if pinned and pinned.get("title") and age <= limit and not saved.get("stale"):
-            mine = [pinned]
+            mine = [pinned] + mine
             if src and src.get("url") and all(x.get("url") != src["url"] for x in b.get("sources", [])):
                 b.setdefault("sources", []).insert(0, src)
             print(f"خبر شهریار ایران ({age:.0f} ساعت پیش) در جای نخست ماند")
