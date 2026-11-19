@@ -861,22 +861,25 @@ def studio_two():
 PRINCE_DIR = os.path.join(HERE, "assets", "prince")   # عکس‌های شهریار ایران که خود رسانه می‌گذارد
 
 
-def prince_photos():
+def prince_photos(rank=0):
     """عکس‌های تازه‌ترین روزِ پوشه‌ی assets/prince (نام با تاریخ آغاز می‌شود، مانند 2026-11-07-frankfurt.jpeg)،
     به ترتیب نام، هر کدام در قاب ۱۶:۹. فایل‌های بدونِ تاریخ تنها هنگامی به کار می‌آیند که فایل تاریخ‌دار نباشد."""
     if not os.path.isdir(PRINCE_DIR):
         return []
     pics = sorted(f for f in os.listdir(PRINCE_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png", ".webp")))
     dated = [f for f in pics if re.match(r"\d{4}-\d{2}-\d{2}", f)]
-    if dated:
-        day = max(f[:10] for f in dated)
+    if dated:                                          # rank 0: تازه‌ترین روز (تازه‌ترین خبر ایشان)؛ rank 1: روز پیش از آن
+        days = sorted({f[:10] for f in dated}, reverse=True)
+        if rank >= len(days):
+            return []
+        day = days[rank]
         pics = [f for f in dated if f[:10] == day]
     else:
         pics = pics[-1:]
     from PIL import ImageFilter
     outs = []
     for k, name in enumerate(pics[:6]):
-        out = os.path.join(OUT, f"prince_photo_{k}.png")
+        out = os.path.join(OUT, f"prince_photo_{rank}_{k}.png")
         if not os.path.exists(out):
             im = Image.open(os.path.join(PRINCE_DIR, name)).convert("RGB")
             bg = im.copy()
@@ -1014,7 +1017,8 @@ def build():
                         clip_over(bv, png, rest, out)
                     except subprocess.CalledProcessError:
                         bv = None
-                pps = prince_photos() if not bv and PRINCE.search(b["items"][n]["title"]) else []
+                rank = sum(1 for j in range(n) if PRINCE.search(b["items"][j]["title"]))   # چندمین خبر ایشان
+                pps = prince_photos(rank) if not bv and PRINCE.search(b["items"][n]["title"]) else []
                 if pps:                                    # خبر شهریار ایران: عکس‌های ایشان یکی پس از دیگری، با حرکت آرام
                     slide_story(b, n, png, over_video=True, credit="عکس: حساب رسمی شهریار ایران")
                     pps = pps[:max(1, int(rest // 3))]     # هر عکس دست‌کم ۳ ثانیه
