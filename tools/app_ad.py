@@ -81,8 +81,8 @@ def backdrop(Wd, Hd):
 
 
 def logo(size):
-    lg = Image.open(os.path.join(HERE, "assets", "irana_logo_transparent.png")).convert("RGBA")
-    return lg.resize((size, int(lg.height * size / lg.width)), Image.LANCZOS)
+    """نشان ایرانا با درفش شیر و خورشید در دست راست آن."""
+    return tv.mark(size)
 
 
 def phone(height):

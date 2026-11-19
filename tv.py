@@ -21,6 +21,26 @@ BULLETIN = os.path.join(HERE, "bulletin", "latest.json")
 FONTS = os.path.join(HERE, "assets", "fonts")
 INTRO = os.path.join(HERE, "assets", "irana_intro_final.mp4")
 LOGO = os.path.join(HERE, "assets", "irana_logo_transparent.png")   # نشان ایرانا
+FLAG = os.path.join(HERE, "assets", "flag_lion_sun.png")             # درفش شیر و خورشید، دست راست نشان ایرانا
+
+
+def mark(size):
+    """نشان ایرانا و، دست راست آن، درفش شیر و خورشید (یک تصویر شفاف؛ بلندی = size)."""
+    lg = Image.open(LOGO).convert("RGBA").resize((size, size), Image.LANCZOS)
+    if not os.path.exists(FLAG):
+        return lg
+    fh = int(size * 0.62); fw = int(fh * 16 / 9); gap = max(8, size // 9); bd = max(2, size // 40)
+    fl = Image.open(FLAG).convert("RGB").resize((fw, fh), Image.LANCZOS)
+    out = Image.new("RGBA", (size + gap + fw + 2 * bd + 6, size), (0, 0, 0, 0))
+    sh = Image.new("RGBA", out.size, (0, 0, 0, 0))
+    y = (size - fh) // 2
+    ImageDraw.Draw(sh).rectangle((size + gap + 4, y + 4, size + gap + fw + 2 * bd + 4, y + fh + 2 * bd + 4), fill=(0, 0, 0, 120))
+    from PIL import ImageFilter as _IF
+    out.alpha_composite(sh.filter(_IF.GaussianBlur(max(2, size // 30))))
+    ImageDraw.Draw(out).rectangle((size + gap, y, size + gap + fw + 2 * bd - 1, y + fh + 2 * bd - 1), fill=(255, 255, 255, 255))
+    out.paste(fl, (size + gap + bd, y + bd))
+    out.alpha_composite(lg, (0, 0))
+    return out
 PRESENTER = {"man": os.path.join(HERE, "assets", "presenter_man.jpg"),        # گوینده‌ها در استودیو
              "woman": os.path.join(HERE, "assets", "presenter_woman.jpg")}
 # نوشته‌های انگلیسی درون عکس‌ها (نام، «NEWS NOW»، ساعت ساختگی) نباید دیده شود:
@@ -121,8 +141,8 @@ def frame(b, transparent=False):
     d.rectangle([0, 128, W, 134], fill=GOLD + (255,))
     x = W - 56
     if os.path.exists(LOGO):
-        lg = Image.open(LOGO).convert("RGBA").resize((108, 108), Image.LANCZOS)
-        img.alpha_composite(lg, (x - 108, 10)); x -= 132
+        mk = mark(108)
+        img.alpha_composite(mk, (x - mk.width, 10)); x -= mk.width + 24
     at_right(d, x, 22, "رسانه ایرانا", F["name"], GOLD)
     at_left(d, 56, 40, b["stamp"], F["meta"], WHITE)
     d.rectangle([0, H - 106, W, H - 100], fill=GOLD + (255,))
@@ -134,8 +154,8 @@ def frame(b, transparent=False):
 def slide_title(b, path):
     img, d = frame(b)
     if os.path.exists(LOGO):
-        lg = Image.open(LOGO).convert("RGBA").resize((220, 220), Image.LANCZOS)
-        img.alpha_composite(lg, ((W - 220) // 2, 160))
+        mk = mark(220)
+        img.alpha_composite(mk, ((W - mk.width) // 2, 160))
     centered3d(d, 395, "تیترهای این بخش", F["meta"], GOLD, 4)
     bottom = H - 125                                   # بالای نوار پایین
     for size in (50, 44, 38):                         # تیترها هرگز روی نوار پایین نمی‌روند
@@ -156,8 +176,8 @@ def slide_title(b, path):
 def slide_end(b, path):
     img, d = frame(b)
     if os.path.exists(LOGO):
-        lg = Image.open(LOGO).convert("RGBA").resize((420, 420), Image.LANCZOS)
-        img.alpha_composite(lg, ((W - 420) // 2, 170))
+        mk = mark(420)
+        img.alpha_composite(mk, ((W - mk.width) // 2, 170))
     centered(d, 610, "رسانه ایرانا", F["big"], GOLD)
     centered(d, 780, "تازه‌ترین رویدادهای ایران · شبانروزی، سر هر ساعت", F["head"], WHITE)
     img.convert("RGB").save(path)
@@ -204,11 +224,10 @@ def lower_third(b, path, title, label):
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     name_w = int(tw(d, "رسانه ایرانا", F["title"]))
-    d.rounded_rectangle([W - 40 - name_w - 130, 30, W - 40, 122], radius=20, fill=BG + (215,))
-    if os.path.exists(LOGO):
-        lg = Image.open(LOGO).convert("RGBA").resize((80, 80), Image.LANCZOS)
-        img.alpha_composite(lg, (W - 140, 36))
-    at_right(d, W - 150, 40, "رسانه ایرانا", F["title"], GOLD)
+    mk = mark(80)
+    d.rounded_rectangle([W - 40 - name_w - mk.width - 50, 30, W - 40, 122], radius=20, fill=BG + (215,))
+    img.alpha_composite(mk, (W - 60 - mk.width, 36))
+    at_right(d, W - 70 - mk.width, 40, "رسانه ایرانا", F["title"], GOLD)
     sw = int(tw(d, b["stamp"], F["small"]))
     d.rounded_rectangle([40, 44, 40 + sw + 48, 108], radius=18, fill=BG + (200,))
     at_left(d, 64, 56, b["stamp"], F["small"], WHITE)
@@ -550,9 +569,9 @@ def short_overlay(b, path):
     d.rectangle([0, 0, SW, 640], fill=(8, 16, 40, 235))
     d.rectangle([0, 632, SW, 640], fill=GOLD + (255,))
     if os.path.exists(LOGO):
-        lg = Image.open(LOGO).convert("RGBA").resize((96, 96), Image.LANCZOS)
-        img.alpha_composite(lg, (SW - 150, 48))
-    d.text((SW - 170, 70), "رسانه ایرانا", font=font("Black", 52), fill=GOLD, anchor="ra", direction="rtl", language="fa")
+        mk = mark(96)
+        img.alpha_composite(mk, (SW - 54 - mk.width, 48))
+    d.text((SW - 74 - (mark(96).width if os.path.exists(LOGO) else 96), 70), "رسانه ایرانا", font=font("Black", 52), fill=GOLD, anchor="ra", direction="rtl", language="fa")
     d.text((60, 82), "خبر نخست", font=font("Bold", 40), fill=(220, 225, 235), anchor="la", direction="rtl", language="fa")
     title = b["items"][0]["title"] if b.get("items") else b["stamp"]
     for size in (68, 60, 52, 46):
@@ -676,7 +695,7 @@ def make_thumbs(b, wide, shots, intro_len):
         d = ImageDraw.Draw(im)
         d.rectangle((0, Hd - 14, Wd, Hd), fill=GOLD)                       # نوار زرین ایرانا (همسان)
         d.rectangle((0, 0, Wd, 10), fill=col)                               # رنگ موضوع (گوناگون)
-        L = lg.resize((150 if tag == "wide" else 190, int(lg.height * (150 if tag == "wide" else 190) / lg.width)), Image.LANCZOS)
+        L = mark(130 if tag == "wide" else 170)
         im.paste(L, (Wd - L.width - 24, 26), L)
         brand = font("Black", 40 if tag == "wide" else 50)
         at_right(d, Wd - L.width - 40, 40, "سیمای ایرانا", brand, WHITE)
@@ -818,8 +837,10 @@ def studio_two():
             t = yy / scr.height
             sd.line([(0, yy), (scr.width, yy)], fill=(int(18 + 20 * (1 - t)), int(40 + 45 * (1 - t)), int(95 + 70 * (1 - t)), 255))
         if os.path.exists(LOGO):
-            lg = Image.open(LOGO).convert("RGBA").resize((300, 300), Image.LANCZOS)
-            scr.alpha_composite(lg, ((scr.width - 300) // 2, int(scr.height * 0.12)))
+            mk = mark(300)
+            if mk.width > scr.width * 0.9:
+                mk = mk.resize((int(scr.width * 0.9), int(mk.height * scr.width * 0.9 / mk.width)), Image.LANCZOS)
+            scr.alpha_composite(mk, ((scr.width - mk.width) // 2, int(scr.height * 0.12)))
         img.alpha_composite(scr, (sx0, sy0))
         img.convert("RGB").filter(ImageFilter.GaussianBlur(2)).save(os.path.join(OUT, "studio_two_back.png"))
         people = Image.new("RGBA", (W, H), (0, 0, 0, 0))
