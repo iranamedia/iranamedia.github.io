@@ -339,7 +339,7 @@ def facebook(b, mp4):
                              **({"thumb": ("thumb.jpg", open(th, "rb").read(), "image/jpeg")} if os.path.exists(th) else {})})
     r = jcall("POST", f"{GRAPH.replace('graph.', 'graph-video.')}/{page}/videos", data=data,
               headers={"Content-Type": ctype})
-    return f"video {r.get('id')}"
+    return f"video {r.get('id')} https://www.facebook.com/{page}/videos/{r.get('id')}"
 
 
 # ---------- اینستاگرام (ریلز، بارگذاری مستقیم) ----------
@@ -533,7 +533,7 @@ def main():
     import datetime
     yt_every = int(os.environ.get("YT_EVERY", "1"))     # سقف آپلود روزانه‌ی یوتیوب: هر چند ساعت یک ویدیو
     yt_turn = datetime.datetime.utcnow().hour % max(yt_every, 1) == 0
-    for name, fn in (("Facebook", lambda: facebook(b, mp4)), ("Instagram", lambda: instagram(b, clip)),
+    for name, fn in (("Facebook", lambda: facebook(b, mp4w)), ("Instagram", lambda: instagram(b, clip)),
                      ("YouTube", lambda: youtube(b, mp4w)), ("YouTube Shorts", lambda: youtube(b, short, True) if short else "skip"),
                      ("X", lambda: x_post(b, mp4, clip))):
         if name.startswith("YouTube") and not yt_turn:
