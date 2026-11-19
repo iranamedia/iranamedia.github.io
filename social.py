@@ -342,6 +342,19 @@ def facebook(b, mp4):
     return f"video {r.get('id')} https://www.facebook.com/{page}/videos/{r.get('id')}"
 
 
+def fb_story(b, mp4):
+    """استوری ویدیویی صفحه‌ی فیسبوک (ایستاده، کوتاه): آغاز، بارگذاری، پایان."""
+    page, tok = os.environ.get("META_PAGE_ID"), os.environ.get("META_PAGE_TOKEN")
+    if not (page and tok and mp4 and os.path.exists(mp4)): return "skip"
+    tok = page_token(page, tok)
+    st = jcall("POST", f"{GRAPH}/{page}/video_stories", params={"upload_phase": "start", "access_token": tok})
+    vid, up = st["video_id"], st["upload_url"]
+    raw = open(mp4, "rb").read()
+    http("POST", up, raw, {"Authorization": f"OAuth {tok}", "offset": "0", "file_size": str(len(raw))})
+    r = jcall("POST", f"{GRAPH}/{page}/video_stories", params={"upload_phase": "finish", "video_id": vid, "access_token": tok})
+    return f"story {r.get('post_id') or vid}"
+
+
 # ---------- اینستاگرام (ریلز، بارگذاری مستقیم) ----------
 
 def hosted_url(page, tok, mp4):
@@ -533,7 +546,10 @@ def main():
     import datetime
     yt_every = int(os.environ.get("YT_EVERY", "1"))     # سقف آپلود روزانه‌ی یوتیوب: هر چند ساعت یک ویدیو
     yt_turn = datetime.datetime.utcnow().hour % max(yt_every, 1) == 0
-    for name, fn in (("Facebook", lambda: facebook(b, mp4w)), ("Instagram", lambda: instagram(b, clip)),
+    for name, fn in (("Facebook", lambda: facebook(b, mp4w)),                 # پست ویدیویی (خوابیده) در «پست‌ها»
+                     ("Facebook Reels", lambda: facebook(b, mp4) if mp4 != mp4w else "skip"),   # ریل (ایستاده)
+                     ("Facebook Story", lambda: fb_story(b, short)),               # استوری (کوتاه، ایستاده)
+                     ("Instagram", lambda: instagram(b, clip)),
                      ("YouTube", lambda: youtube(b, mp4w)), ("YouTube Shorts", lambda: youtube(b, short, True) if short else "skip"),
                      ("X", lambda: x_post(b, mp4, clip))):
         if name.startswith("YouTube") and not yt_turn:
