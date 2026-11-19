@@ -77,13 +77,20 @@ def main(path, prince_path):
             src = saved.get("source")
             if src and src.get("url") and all(x.get("url") != src["url"] for x in b.get("sources", [])):
                 b.setdefault("sources", []).insert(0, src)
-            for it in others:
-                it.pop("lead", None)
+            rank = int(saved.get("pin_rank", 1) or 1)      # ۱: نخست؛ ۲: دوم (پس از مهم‌ترین خبر دیگر)
             m = re.search(r"ساعت\s*(\d+)", b.get("stamp", "").translate(FA))
             cap = 5 if m and int(m.group(1)) % 24 in VOICED else 10
-            b["items"] = ([pinned] + [it for it in others if is_prince(it)] + [it for it in others if not is_prince(it)])[:cap]
+            rest = [it for it in others if is_prince(it)] + [it for it in others if not is_prince(it)]
+            if rank >= 2:
+                top = ([it for it in others if it.get("lead") and not is_prince(it)] or [it for it in others if not is_prince(it)])[:1]
+                rest = [it for it in rest if it not in top]
+                b["items"] = (top + [pinned] + rest)[:cap]
+            else:
+                for it in others:
+                    it.pop("lead", None)
+                b["items"] = ([pinned] + rest)[:cap]
             json.dump(b, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-            print("رویداد برگزیده تا", saved["pin_until"], "نخست:", pinned["title"])
+            print("رویداد برگزیده تا", saved["pin_until"], "جای", rank, ":", pinned["title"])
             return
     if not mine and os.path.exists(prince_path):
         saved = json.load(open(prince_path, encoding="utf-8"))
