@@ -251,6 +251,13 @@ jobs:
           TV_WIDE: _tv/irana-tv.mp4
           TV_TALL: _tv/irana-tv-tall.mp4
         run: python3 social.py
+      - name: ثبت واپسین برنامه‌ی سیما (پیوند برنامه‌ی پیشین و پسین)
+        if: always() && !inputs.dry && hashFiles('bulletin/tv_last.json') != ''
+        run: |
+          git add bulletin/tv_last.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "واپسین برنامه‌ی سیما [skip ci]"
+          for i in 1 2 3; do git pull -q --rebase --autostash && git push -q && break; sleep 5; done
       - uses: actions/upload-artifact@v4
         if: always() && steps.tv.outcome == 'success'
         with:

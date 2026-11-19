@@ -328,17 +328,21 @@ def page_token(page, tok):
     return _PAGE_TOK[page]
 
 
-def facebook(b, mp4):
+def facebook(b, mp4, feed=True):
     page, tok = os.environ.get("META_PAGE_ID"), os.environ.get("META_PAGE_TOKEN")
     if not (page and tok): return "skip"
     tok = page_token(page, tok)
     th = os.path.join(os.path.dirname(os.environ.get("TV_WIDE", "")), "thumb_wide.jpg")
+    prev_fb = tv_last().get("facebook")
     data, ctype = multipart({"access_token": tok, "title": title_of(b, 250),
-                             "description": caption(b)},
+                             "description": caption(b) + (f"\n\n▶️ برنامه‌ی پیشین سیمای ایرانا: https://www.facebook.com/{page}/videos/{prev_fb}"
+                                                          if feed and prev_fb else "")},
                             {"source": ("irana.mp4", open(mp4, "rb").read(), "video/mp4"),
                              **({"thumb": ("thumb.jpg", open(th, "rb").read(), "image/jpeg")} if os.path.exists(th) else {})})
     r = jcall("POST", f"{GRAPH.replace('graph.', 'graph-video.')}/{page}/videos", data=data,
               headers={"Content-Type": ctype})
+    if feed and r.get("id"):
+        tv_last_set(facebook=r["id"])
     return f"video {r.get('id')} https://www.facebook.com/{page}/videos/{r.get('id')}"
 
 
@@ -423,6 +427,35 @@ def make_short(tall):
     return None
 
 
+TV_LAST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bulletin", "tv_last.json")
+
+
+def tv_last():
+    try:
+        return json.load(open(TV_LAST, encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def tv_last_set(**kv):
+    d = tv_last(); d.update({k: v for k, v in kv.items() if v})
+    json.dump(d, open(TV_LAST, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+
+
+def yt_playlist(tok, vid, key="yt_playlist", title="سیمای ایرانا — همه‌ی برنامه‌ها"):
+    """هر برنامه در فهرست پخش «سیمای ایرانا» می‌رود؛ یوتیوب پس از هر برنامه، برنامه‌ی دیگر را پخش می‌کند."""
+    pl = tv_last().get(key)
+    H = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json; charset=UTF-8"}
+    if not pl:
+        r = jcall("POST", "https://www.googleapis.com/youtube/v3/playlists?part=snippet,status", data=json.dumps(
+            {"snippet": {"title": title, "description": "خبرهای ایران، هر روز ساعت ۸ و ۲۰ به وقت تهران — رسانه ایرانا",
+                         "defaultLanguage": "fa"}, "status": {"privacyStatus": "public"}}).encode(), headers=H)
+        pl = r["id"]; tv_last_set(**{key: pl})
+    jcall("POST", "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet", data=json.dumps(
+        {"snippet": {"playlistId": pl, "position": 0, "resourceId": {"kind": "youtube#video", "videoId": vid}}}).encode(), headers=H)
+    return pl
+
+
 def youtube(b, mp4, short=False):
     cid, sec, ref = (os.environ.get(k) for k in ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"))
     if not (cid and sec and ref): return "skip"
@@ -433,8 +466,14 @@ def youtube(b, mp4, short=False):
     size = os.path.getsize(mp4)
     lead = (b.get("items") or [{}])[0].get("title", "")
     title = (lead[:88] + " #Shorts") if short else title_of(b, 100)
+    last = tv_last()
+    links = ""
+    if not short and last.get("youtube"):                # پیوند به برنامه‌ی پیشین سیمای ایرانا
+        links += f"\n\n▶️ برنامه‌ی پیشین سیمای ایرانا: https://youtu.be/{last['youtube']}"
+    if last.get("yt_playlist"):
+        links += f"\n📺 همه‌ی برنامه‌های سیمای ایرانا: https://www.youtube.com/playlist?list={last['yt_playlist']}"
     meta = {"snippet": {"title": title,
-                        "description": caption(b, 4500).replace("<", "‹").replace(">", "›"),
+                        "description": (caption(b, 4300) + links).replace("<", "‹").replace(">", "›"),
                         "categoryId": "25", "defaultLanguage": "fa", "defaultAudioLanguage": "fa",
                         "tags": ["ایران", "رسانه ایرانا", "Iranamedia", "خبر"] + [t.lstrip("#").replace("_", " ") for t in hashtags(b).split()]},
             "status": {"privacyStatus": os.environ.get("YT_PRIVACY", "public"), "selfDeclaredMadeForKids": False}}
@@ -453,6 +492,14 @@ def youtube(b, mp4, short=False):
             print("YouTube: سرنما گذاشته شد", flush=True)
         except Exception as e:
             print("YouTube: سرنما نشد", clean(e)[:200], flush=True)
+    if vid:
+        try:
+            yt_playlist(tok, vid, *(("yt_shorts_playlist", "سیمای ایرانا — کوتاه") if short else ()))
+            print("YouTube: در فهرست پخش", flush=True)
+        except Exception as e:
+            print("YouTube: فهرست پخش نشد", clean(e)[:200], flush=True)
+        if not short:
+            tv_last_set(youtube=vid)
     return f"video {vid}"
 
 
@@ -547,7 +594,7 @@ def main():
     yt_every = int(os.environ.get("YT_EVERY", "1"))     # سقف آپلود روزانه‌ی یوتیوب: هر چند ساعت یک ویدیو
     yt_turn = datetime.datetime.utcnow().hour % max(yt_every, 1) == 0
     for name, fn in (("Facebook", lambda: facebook(b, mp4w)),                 # پست ویدیویی (خوابیده) در «پست‌ها»
-                     ("Facebook Reels", lambda: facebook(b, mp4) if mp4 != mp4w else "skip"),   # ریل (ایستاده)
+                     ("Facebook Reels", lambda: facebook(b, mp4, feed=False) if mp4 != mp4w else "skip"),   # ریل (ایستاده)
                      ("Facebook Story", lambda: fb_story(b, short)),               # استوری (کوتاه، ایستاده)
                      ("Instagram", lambda: instagram(b, clip)),
                      ("YouTube", lambda: youtube(b, mp4w)), ("YouTube Shorts", lambda: youtube(b, short, True) if short else "skip"),

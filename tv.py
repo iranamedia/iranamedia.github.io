@@ -1098,11 +1098,34 @@ def caption(b):
     return "\n".join(lines)[:1000]
 
 
+TV_LAST = os.path.join(HERE, "bulletin", "tv_last.json")      # واپسین برنامه‌ی سیما در هر جا (برای پیوند «برنامه‌ی پیشین»)
+TG_PUBLIC = os.environ.get("TELEGRAM_CHANNEL_USERNAME", "IranaMediaNews")
+
+
+def tv_last():
+    try:
+        return json.load(open(TV_LAST, encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def tv_last_set(**kv):
+    d = tv_last(); d.update({k: v for k, v in kv.items() if v})
+    json.dump(d, open(TV_LAST, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+
+
 def send(path, cap):
     boundary = uuid.uuid4().hex
     body = b""
+    prev = tv_last().get("telegram")
+    rows = []
+    if prev:                                               # پایان هر برنامه به برنامه‌ی پیشین سیمای ایرانا پیوند دارد
+        rows.append([{"text": "▶️ برنامه‌ی پیشین سیمای ایرانا", "url": f"https://t.me/{TG_PUBLIC}/{prev}"}])
+    rows.append([{"text": "📱 اپ ایرانا", "url": "https://iranamedia.github.io/irana.apk"},
+                 {"text": "🌐 تارنما", "url": "https://iranamedia.github.io/"}])
     for k, v in {"chat_id": CHANNEL, "caption": cap, "supports_streaming": "true",
-                 "width": str(W), "height": str(H), "duration": str(int(dur(path)))}.items():
+                 "width": str(W), "height": str(H), "duration": str(int(dur(path))),
+                 "reply_markup": json.dumps({"inline_keyboard": rows}, ensure_ascii=False)}.items():
         body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
     for name, fn in (("cover", "thumb_wide.jpg"), ("thumbnail", "thumb_small.jpg")):     # سرنمای ایرانا
         tp = os.path.join(os.path.dirname(path), fn)
@@ -1119,6 +1142,20 @@ def send(path, cap):
     except urllib.error.HTTPError as e:
         res = {"ok": False, "error": f"{e.code} {e.read()[:300]!r}"}
     print("Telegram TV:", "ok" if res.get("ok") else str(res).replace(BOT_TOKEN, "***")[:400], flush=True)
+    if res.get("ok"):
+        mid = (res.get("result") or {}).get("message_id")
+        if mid and prev:                                   # برنامه‌ی پیشین هم به این برنامه پیوند می‌یابد («برنامه‌ی پسین»)
+            try:
+                kb = {"inline_keyboard": [[{"text": "▶️ برنامه‌ی پیشین", "url": f"https://t.me/{TG_PUBLIC}/{tv_last().get('telegram_prev', '')}"}] if tv_last().get("telegram_prev") else [],
+                                          [{"text": "⏭ برنامه‌ی پسین سیمای ایرانا", "url": f"https://t.me/{TG_PUBLIC}/{mid}"}],
+                                          [{"text": "📱 اپ ایرانا", "url": "https://iranamedia.github.io/irana.apk"},
+                                           {"text": "🌐 تارنما", "url": "https://iranamedia.github.io/"}]]}
+                kb["inline_keyboard"] = [r for r in kb["inline_keyboard"] if r]
+                q = urllib.parse.urlencode({"chat_id": CHANNEL, "message_id": prev, "reply_markup": json.dumps(kb, ensure_ascii=False)})
+                urllib.request.urlopen(f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup?{q}", timeout=30).read()
+            except Exception as e:
+                print("پیوند برنامه‌ی پسین نشد:", str(e)[:150], flush=True)
+        tv_last_set(telegram=mid, telegram_prev=prev)
     return res.get("ok")
 
 
