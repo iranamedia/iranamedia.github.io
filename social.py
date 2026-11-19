@@ -332,9 +332,11 @@ def facebook(b, mp4):
     page, tok = os.environ.get("META_PAGE_ID"), os.environ.get("META_PAGE_TOKEN")
     if not (page and tok): return "skip"
     tok = page_token(page, tok)
+    th = os.path.join(os.path.dirname(os.environ.get("TV_WIDE", "")), "thumb_wide.jpg")
     data, ctype = multipart({"access_token": tok, "title": title_of(b, 250),
                              "description": caption(b)},
-                            {"source": ("irana.mp4", open(mp4, "rb").read(), "video/mp4")})
+                            {"source": ("irana.mp4", open(mp4, "rb").read(), "video/mp4"),
+                             **({"thumb": ("thumb.jpg", open(th, "rb").read(), "image/jpeg")} if os.path.exists(th) else {})})
     r = jcall("POST", f"{GRAPH.replace('graph.', 'graph-video.')}/{page}/videos", data=data,
               headers={"Content-Type": ctype})
     return f"video {r.get('id')}"
@@ -429,7 +431,16 @@ def youtube(b, mp4, short=False):
                       "X-Upload-Content-Type": "video/mp4", "X-Upload-Content-Length": str(size)})
     loc = hdr.get("Location") or hdr.get("location")
     _, _, body = http("PUT", loc, open(mp4, "rb").read(), {"Content-Type": "video/mp4"})
-    return f"video {json.loads(body).get('id')}"
+    vid = json.loads(body).get("id")
+    th = os.path.join(os.path.dirname(os.environ.get("TV_WIDE", "")), "thumb_tall.jpg" if short else "thumb_wide.jpg")
+    if vid and os.path.exists(th):                       # سرنمای ایرانا (اگر کانال اجازه‌ی سرنمای دلخواه دارد)
+        try:
+            http("POST", f"https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId={vid}", open(th, "rb").read(),
+                 {"Authorization": f"Bearer {tok}", "Content-Type": "image/jpeg"})
+            print("YouTube: سرنما گذاشته شد", flush=True)
+        except Exception as e:
+            print("YouTube: سرنما نشد", clean(e)[:200], flush=True)
+    return f"video {vid}"
 
 
 # ---------- ایکس (OAuth 1.0a) ----------

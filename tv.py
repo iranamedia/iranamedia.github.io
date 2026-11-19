@@ -576,6 +576,147 @@ def short_overlay(b, path):
     return path
 
 
+# ---------- سرنما (thumbnail) هر بخش سیما ----------
+# همسان: همیشه زمینه‌ی سرمه‌ای، نشان ایرانا، نوار زرین و «سیمای ایرانا».
+# گوناگون: تیتر درشت خبر نخست، عکس یا فیلم همان خبر، و رنگ و برچسب موضوع.
+ACCENTS = (                                             # (الگو، برچسب، رنگ)
+    (PRINCE, "شهریار ایران", (224, 180, 82)),
+    (re.compile(r"اعدام|به[\s\u200c]*دار"), "اعدام", (196, 30, 45)),
+    (re.compile(r"خیزش|اعتراض|تجمع|شعار|اعتصاب"), "خیزش", (232, 110, 30)),
+    (re.compile(r"بازداشت|زندان|حقوق[\s\u200c]*بشر|هەنگاو|هرانا"), "حقوق بشر", (150, 60, 160)),
+    (re.compile(r"جنگ|حمله|موشک|پهپاد|انفجار|نفتکش|سپاه"), "جنگ و درگیری", (200, 60, 40)),
+)
+
+
+def accent_of(it):
+    t = it.get("title", "") + " " + it.get("body", "")
+    for pat, label, col in ACCENTS:
+        if pat.search(t):
+            return label, col
+    return "خبر نخست", (60, 120, 220)
+
+
+def thumb_picture(b, wide, shots, intro_len):
+    """عکس سرنما: عکس شهریار ایران (اگر خبر ایشان نخست است)، وگرنه فیلم خبر نخست، وگرنه نمایی از خود خبر."""
+    it = b["items"][0]
+    photos = prince_photos() if PRINCE.search(it.get("title", "")) else []
+    if photos:
+        k = sum(map(ord, b.get("stamp", ""))) % len(photos)          # هر بخش، عکسی دیگر
+        return Image.open(photos[k]).convert("RGB")
+    t = None
+    br = os.path.join(OUT, "broll_0.mp4")
+    src = br if os.path.exists(br) else wide
+    if src == wide:
+        st = [sh for sh in shots if sh["key"][0] in ("story", "clip") and (sh["key"][0] == "clip" or sh["key"][1] == 0)]
+        clip = [sh for sh in st if sh["key"][0] == "clip"]
+        sh = (clip or st or [None])[0]
+        t = intro_len + (sh["start"] + min(sh["seconds"] * 0.5, 3.0) if sh else 3.0)
+    png = os.path.join(OUT, "thumb_src.png")
+    try:
+        ff(*(["-ss", f"{t:.2f}"] if t else ["-ss", "1.5"]), "-i", src, "-frames:v", "1", png)
+        im = Image.open(png).convert("RGB")
+        if src == wide:                                   # نوار تیتر و ساعتِ خود سیما در سرنما نیاید
+            im = im.crop((0, int(im.height * 0.09), im.width, int(im.height * 0.63)))
+        return im
+    except Exception:
+        return None
+
+
+def _fit_lines(d, text, weight, width, max_lines, sizes):
+    for sz in sizes:
+        f = font(weight, sz)
+        ls = wrap(d, text, f, width)
+        if len(ls) <= max_lines:
+            return f, ls
+    f = font(weight, sizes[-1])
+    ls = wrap(d, text, f, width)[:max_lines]
+    ls[-1] = ls[-1].rstrip("،.") + "…"
+    return f, ls
+
+
+def make_thumbs(b, wide, shots, intro_len):
+    """سرنمای خوابیده (۱۲۸۰×۷۲۰، یوتیوب/تلگرام/فیسبوک) و ایستاده (۱۰۸۰×۱۹۲۰، شورتس/ریلز)."""
+    from PIL import ImageFilter
+    it = b["items"][0]
+    label, col = accent_of(it)
+    title = it.get("title", "")
+    who, _, head = title.partition(":")
+    if not head.strip() or len(who) > 28:
+        who, head = "", title
+    pic = thumb_picture(b, wide, shots, intro_len)
+    hour = re.search(r"ساعت\s*[۰-۹\d]+", b.get("stamp", ""))
+    day = re.search(r"،\s*(\S+\s+[۰-۹\d]+\s+\S+)", b.get("stamp", ""))
+    when = " · ".join(x for x in ((hour.group(0) if hour else ""), (day.group(1) if day else "")) if x)
+    lg = Image.open(os.path.join(HERE, "assets", "irana_logo_transparent.png")).convert("RGBA")
+    outs = {}
+    for tag, (Wd, Hd) in (("wide", (1280, 720)), ("tall", (1080, 1920))):
+        im = Image.new("RGB", (Wd, Hd), BG)
+        if pic:                                            # عکس: نیمه‌ی چپ (خوابیده) یا بالا (ایستاده)، آمیخته با زمینه
+            pw, ph = (int(Wd * 0.50), Hd) if tag == "wide" else (Wd, int(Hd * 0.46))
+            r = max(pw / pic.width, ph / pic.height)
+            p = pic.resize((int(pic.width * r) + 1, int(pic.height * r) + 1), Image.LANCZOS)
+            top = 0 if (PRINCE.search(title) and tag == "wide") else (p.height - ph) // 3
+            p = p.crop(((p.width - pw) // 2, top, (p.width - pw) // 2 + pw, top + ph))
+            m = Image.new("L", (pw, ph), 255)
+            md = ImageDraw.Draw(m)
+            fade = int(pw * 0.35) if tag == "wide" else int(ph * 0.30)
+            for k in range(fade):
+                a = int(255 * k / fade)
+                if tag == "wide":
+                    md.line([(pw - 1 - k, 0), (pw - 1 - k, ph)], fill=a)
+                else:
+                    md.line([(0, ph - 1 - k), (pw, ph - 1 - k)], fill=a)
+            im.paste(p, (0, 0), m)
+        if tag == "tall":                                  # سایه‌ی بالا تا نام و ساعت روی عکس خوانا باشد
+            sh = Image.new("L", (Wd, 300), 0)
+            sd = ImageDraw.Draw(sh)
+            for k in range(300):
+                sd.line([(0, k), (Wd, k)], fill=int(190 * (1 - k / 300)))
+            im.paste(Image.new("RGB", (Wd, 300), BG), (0, 0), sh)
+        d = ImageDraw.Draw(im)
+        d.rectangle((0, Hd - 14, Wd, Hd), fill=GOLD)                       # نوار زرین ایرانا (همسان)
+        d.rectangle((0, 0, Wd, 10), fill=col)                               # رنگ موضوع (گوناگون)
+        L = lg.resize((150 if tag == "wide" else 190, int(lg.height * (150 if tag == "wide" else 190) / lg.width)), Image.LANCZOS)
+        im.paste(L, (Wd - L.width - 24, 26), L)
+        brand = font("Black", 40 if tag == "wide" else 50)
+        at_right(d, Wd - L.width - 40, 40, "سیمای ایرانا", brand, WHITE)
+        at_right(d, Wd - L.width - 40, 40 + brand.size + 10, when, font("Medium", 28 if tag == "wide" else 36), MIST)
+        if tag == "wide":
+            x1, x0, y = Wd - 40, int(Wd * 0.40), int(Hd * 0.33)
+        else:
+            x1, x0, y = Wd - 60, 60, int(Hd * 0.50)
+        width = x1 - x0
+        lf = font("Black", 34 if tag == "wide" else 46)                     # برچسب موضوع
+        lw = int(tw(d, label, lf)) + 40
+        d.rounded_rectangle((x1 - lw, y, x1, y + lf.size + 24), radius=12, fill=col)
+        at_right(d, x1 - 20, y + 8, label, lf, WHITE if col != GOLD else BG)
+        y += lf.size + 50
+        if who:
+            wf = font("Black", 52 if tag == "wide" else 72)
+            for k in range(4, 0, -1):
+                at_right(d, x1 + k, y + k, who.strip() + ":", wf, (6, 12, 30))
+            at_right(d, x1, y, who.strip() + ":", wf, GOLD)
+            y += int(wf.size * 1.35)
+        room = (Hd - 40 - y)
+        hf, ls = _fit_lines(d, head.strip(), "Black", width, 3 if tag == "wide" else 4,
+                            (84, 76, 68, 60, 54) if tag == "wide" else (110, 100, 90, 80, 72))
+        lh = int(hf.size * 1.28)
+        for ln in ls:
+            if y + lh > Hd - 30:
+                break
+            for k in range(5, 0, -1):
+                at_right(d, x1 + k, y + k, ln, hf, (6, 12, 30))
+            at_right(d, x1, y, ln, hf, WHITE)
+            y += lh
+        out = os.path.join(OUT, f"thumb_{tag}.jpg")
+        im.save(out, quality=88)
+        outs[tag] = out
+    small = os.path.join(OUT, "thumb_small.jpg")                           # برای «thumbnail» تلگرام (۳۲۰ پیکسل)
+    Image.open(outs["wide"]).resize((320, 180), Image.LANCZOS).save(small, quality=80)
+    print("سرنما:", label, "·", title[:60], flush=True)
+    return outs
+
+
 def make_short(b, wide, shots, intro_len):
     """خبر نخست (و پیام ویدیویی شهریار ایران اگر هست) از ویدیوی افقی، در قاب ایستاده."""
     first = next((s for s in shots if s["key"][0] == "story" and s["key"][1] == 0), None)
@@ -928,6 +1069,10 @@ def build():
        "-movflags", "+faststart", tall)                    # ویژگی‌هایی که اینستاگرام می‌پذیرد
     print(f"TV: {wide} {dur(wide):.1f}s {os.path.getsize(wide)//1024} KB · {tall}", flush=True)
     try:
+        make_thumbs(b, wide, shots, dur(parts[0]) - 1.2 if len(parts) == 2 else 0.0)
+    except Exception as ex:                                # سرنما نباید سیما را بایستاند
+        print("سرنما ساخته نشد:", ex, flush=True)
+    try:
         make_short(b, wide, shots, (dur(parts[0]) - 1.2) if len(parts) == 2 else 0.0)
     except Exception as e:                            # ویدیوی کوتاه نشد: برنامه‌ی اصلی می‌ماند
         print("ویدیوی کوتاه ساخته نشد:", str(e)[:200], flush=True)
@@ -955,6 +1100,11 @@ def send(path, cap):
     for k, v in {"chat_id": CHANNEL, "caption": cap, "supports_streaming": "true",
                  "width": str(W), "height": str(H), "duration": str(int(dur(path)))}.items():
         body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
+    for name, fn in (("cover", "thumb_wide.jpg"), ("thumbnail", "thumb_small.jpg")):     # سرنمای ایرانا
+        tp = os.path.join(os.path.dirname(path), fn)
+        if os.path.exists(tp):
+            body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"; filename=\"{fn}\"\r\n"
+                     "Content-Type: image/jpeg\r\n\r\n").encode() + open(tp, "rb").read() + b"\r\n"
     body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"video\"; filename=\"irana-tv.mp4\"\r\n"
              "Content-Type: video/mp4\r\n\r\n").encode() + open(path, "rb").read() + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(f"https://api.telegram.org/bot{BOT_TOKEN}/sendVideo", data=body,
