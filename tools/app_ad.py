@@ -166,6 +166,54 @@ def scene(kind, Wd, Hd, path):
     im.convert("RGB").save(path)
 
 
+def thumbs(out):
+    """سرنمای آگهی: همسان با سرنمای سیما (سرمه‌ای، نشان ایرانا، نوار زرین)، با گوشی، تیتر درشت و دکمه‌ی دریافت."""
+    made = []
+    for tag, (Wd, Hd) in (("wide", (1280, 720)), ("tall", (1080, 1920))):
+        im = backdrop(Wd, Hd).convert("RGBA")
+        d = ImageDraw.Draw(im)
+        accent = (46, 160, 90)
+        d.rectangle((0, 0, Wd, 10), fill=accent)
+        L = logo(150 if tag == "wide" else 200)
+        im.alpha_composite(L, (Wd - L.width - 24, 26))
+        brand = tv.font("Black", 40 if tag == "wide" else 52)
+        d.text((Wd - L.width - 40, 40), "رسانه ایرانا", font=brand, fill=WHITE, anchor="ra", direction="rtl", language="fa")
+        d.text((Wd - L.width - 40, 40 + brand.size + 12), "خبرهای ایران، سر هر ساعت", font=tv.font("Medium", 28 if tag == "wide" else 36),
+               fill=MIST, anchor="ra", direction="rtl", language="fa")
+        ph = phone(int(Hd * (0.86 if tag == "wide" else 0.46)))
+        if tag == "wide":
+            im.alpha_composite(ph, (int(Wd * 0.04), (Hd - ph.height) // 2 + 10))
+            x1, y, width = Wd - 50, int(Hd * 0.32), int(Wd * 0.56)
+        else:
+            im.alpha_composite(ph, ((Wd - ph.width) // 2, int(Hd * 0.13)))
+            x1, y, width = Wd - 70, int(Hd * 0.62), Wd - 140
+        cx = x1 - width // 2
+        lf = tv.font("Black", 34 if tag == "wide" else 46)
+        lab = "اپ تازه"
+        lw = int(d.textlength(lab, font=lf, direction="rtl", language="fa")) + 40
+        d.rounded_rectangle((x1 - lw, y, x1, y + lf.size + 24), radius=12, fill=accent)
+        d.text((x1 - 20, y + 8), lab, font=lf, fill=WHITE, anchor="ra", direction="rtl", language="fa")
+        y += lf.size + 50
+        hf = tv.font("Black", 80 if tag == "wide" else 104)
+        for ln in ("رسانه ایرانا", "در گوشی شما"):
+            for k in range(5, 0, -1):
+                d.text((x1 + k, y + k), ln, font=hf, fill=(6, 12, 30), anchor="ra", direction="rtl", language="fa")
+            d.text((x1, y), ln, font=hf, fill=WHITE if ln == "رسانه ایرانا" else GOLD, anchor="ra", direction="rtl", language="fa")
+            y += int(hf.size * 1.25)
+        sf = tv.font("Bold", 34 if tag == "wide" else 46)
+        d.text((x1, y), "خبر هر ساعت · رادیو · سیما", font=sf, fill=MIST, anchor="ra", direction="rtl", language="fa")
+        y += int(sf.size * 1.8)
+        bf = tv.font("Black", 44 if tag == "wide" else 60)
+        bw, bh = int(d.textlength("دریافت رایگان", font=bf, direction="rtl", language="fa")) + 90, bf.size + 44
+        d.rounded_rectangle((x1 - bw + 6, y + 8, x1 + 6, y + bh + 8), radius=bh // 2, fill=(110, 80, 20))
+        d.rounded_rectangle((x1 - bw, y, x1, y + bh), radius=bh // 2, fill=GOLD)
+        d.text((x1 - bw // 2, y + bh // 2), "دریافت رایگان", font=bf, fill=BG, anchor="mm", direction="rtl", language="fa")
+        p = os.path.join(out, f"app-ad-thumb-{tag}.jpg")
+        im.convert("RGB").save(p, quality=90)
+        made.append(p)
+    return made
+
+
 def build(out, voice_name, voice_id):
     os.makedirs(out, exist_ok=True)
     work = os.path.join(out, f"_{voice_name}")
@@ -199,6 +247,12 @@ def build(out, voice_name, voice_id):
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", vl, "-i", audio,
                         "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
                         "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", mp4], check=True)
+        th = os.path.join(out, f"app-ad-thumb-{tag}.jpg")
+        if os.path.exists(th):                            # سرنما درون خود فایل (برای نمایش در گوشی و بارگذاری)
+            tmp = mp4 + ".tmp.mp4"
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-i", th, "-map", "0", "-map", "1",
+                            "-c", "copy", "-c:v:1", "mjpeg", "-disposition:v:1", "attached_pic", "-movflags", "+faststart", tmp], check=True)
+            os.replace(tmp, mp4)
         print(mp4, f"{dur(mp4):.1f}s", flush=True)
         made.append(mp4)
     return made
@@ -251,5 +305,7 @@ if __name__ == "__main__":
         pairs = [(n, VOICES.get(n, n)) for n in names]
     if not pairs:
         raise SystemExit("گوینده‌ی زنی در دسترس نیست")
+    os.makedirs(out, exist_ok=True)
+    thumbs(out)
     for n, vid in pairs:
         build(out, n, vid)
