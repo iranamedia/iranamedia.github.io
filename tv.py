@@ -616,27 +616,24 @@ def accent_of(it):
 
 
 def thumb_picture(b, wide, shots, intro_len):
-    """عکس سرنما: عکس شهریار ایران (اگر خبر ایشان نخست است)، وگرنه فیلم خبر نخست، وگرنه نمایی از خود خبر."""
+    """عکس سرنما، تنها از خود رویداد: عکس شهریار ایران (اگر خبر ایشان نخست است) یا نمایی از پیام ویدیویی ایشان.
+    نگاره‌ی گویندگان و فیلم نمادین هرگز در سرنما نمی‌آید؛ بی‌عکسِ رویداد، سرنما تنها نوشته است."""
     it = b["items"][0]
-    photos = prince_photos() if PRINCE.search(it.get("title", "")) else []
+    if not PRINCE.search(it.get("title", "")):
+        return None
+    photos = prince_photos()
     if photos:
         k = sum(map(ord, b.get("stamp", ""))) % len(photos)          # هر بخش، عکسی دیگر
         return Image.open(photos[k]).convert("RGB")
-    t = None
-    br = os.path.join(OUT, "broll_0.mp4")
-    src = br if os.path.exists(br) else wide
-    if src == wide:
-        st = [sh for sh in shots if sh["key"][0] in ("story", "clip") and (sh["key"][0] == "clip" or sh["key"][1] == 0)]
-        clip = [sh for sh in st if sh["key"][0] == "clip"]
-        sh = (clip or st or [None])[0]
-        t = intro_len + (sh["start"] + min(sh["seconds"] * 0.5, 3.0) if sh else 3.0)
+    clip = [sh for sh in shots if sh["key"][0] == "clip"]
+    if not clip:
+        return None
+    sh = clip[0]
     png = os.path.join(OUT, "thumb_src.png")
     try:
-        ff(*(["-ss", f"{t:.2f}"] if t else ["-ss", "1.5"]), "-i", src, "-frames:v", "1", png)
+        ff("-ss", f"{intro_len + sh['start'] + min(sh['seconds'] * 0.5, 3.0):.2f}", "-i", wide, "-frames:v", "1", png)
         im = Image.open(png).convert("RGB")
-        if src == wide:                                   # نوار تیتر و ساعتِ خود سیما در سرنما نیاید
-            im = im.crop((0, int(im.height * 0.09), im.width, int(im.height * 0.63)))
-        return im
+        return im.crop((0, int(im.height * 0.09), im.width, int(im.height * 0.63)))   # بی‌نوار تیتر و ساعت
     except Exception:
         return None
 
@@ -656,6 +653,7 @@ def _fit_lines(d, text, weight, width, max_lines, sizes):
 def make_thumbs(b, wide, shots, intro_len):
     """سرنمای خوابیده (۱۲۸۰×۷۲۰، یوتیوب/تلگرام/فیسبوک) و ایستاده (۱۰۸۰×۱۹۲۰، شورتس/ریلز)."""
     from PIL import ImageFilter
+    import numpy as np
     it = b["items"][0]
     label, col = accent_of(it)
     title = it.get("title", "")
@@ -670,6 +668,12 @@ def make_thumbs(b, wide, shots, intro_len):
     outs = {}
     for tag, (Wd, Hd) in (("wide", (1280, 720)), ("tall", (1080, 1920))):
         im = Image.new("RGB", (Wd, Hd), BG)
+        if not pic:                                        # زمینه‌ی نوشتاری: درخشش آرام به رنگ موضوع
+            yy, xx = np.mgrid[0:Hd, 0:Wd].astype(np.float32)
+            cx, cy = (Wd * 0.22, Hd * 0.62) if tag == "wide" else (Wd * 0.5, Hd * 0.70)
+            g = np.exp(-(((xx - cx) / (Wd * 0.55)) ** 2 + ((yy - cy) / (Hd * 0.55)) ** 2))[..., None] * 0.45
+            base = np.asarray(im).astype(np.float32)
+            im = Image.fromarray(np.clip(base * (1 - g) + np.array(col, np.float32) * g, 0, 255).astype(np.uint8))
         if pic:                                            # عکس: نیمه‌ی چپ (خوابیده) یا بالا (ایستاده)، آمیخته با زمینه
             pw, ph = (int(Wd * 0.50), Hd) if tag == "wide" else (Wd, int(Hd * 0.46))
             r = max(pw / pic.width, ph / pic.height)
@@ -700,29 +704,46 @@ def make_thumbs(b, wide, shots, intro_len):
         brand = font("Black", 40 if tag == "wide" else 50)
         at_right(d, Wd - L.width - 40, 40, "سیمای ایرانا", brand, WHITE)
         at_right(d, Wd - L.width - 40, 40 + brand.size + 10, when, font("Medium", 28 if tag == "wide" else 36), MIST)
-        if tag == "wide":
-            x1, x0, y = Wd - 40, int(Wd * 0.40), int(Hd * 0.33)
+        if not pic:                                        # بی‌عکس رویداد: تنها نوشته، پهن و درشت، در میانه
+            x1, x0, top = (Wd - 50, 50, 175) if tag == "wide" else (Wd - 60, 60, 300)
+        elif tag == "wide":
+            x1, x0, top = Wd - 40, int(Wd * 0.40), int(Hd * 0.33)
         else:
-            x1, x0, y = Wd - 60, 60, int(Hd * 0.50)
-        width = x1 - x0
+            x1, x0, top = Wd - 60, 60, int(Hd * 0.50)
+        width, bottom = x1 - x0, Hd - 40
         lf = font("Black", 34 if tag == "wide" else 46)                     # برچسب موضوع
+        wf = font("Black", 52 if tag == "wide" else 72) if who else None
+        above = lf.size + 50 + (int(wf.size * 1.35) if wf else 0)
+        if pic:
+            sizes, maxl = ((84, 76, 68, 60, 54), 4) if tag == "wide" else ((110, 100, 90, 80, 72), 4)
+        else:
+            sizes, maxl = ((100, 92, 84, 76, 68, 60), 4) if tag == "wide" else ((128, 116, 104, 94, 84, 76), 6)
+        room = bottom - top - above
+        hf, ls = None, []
+        for sz in sizes:                                  # بزرگ‌ترین اندازه‌ای که همه‌ی تیتر در جا بگنجد
+            f = font("Black", sz)
+            w_ = wrap(d, head.strip(), f, width)
+            if len(w_) <= maxl and len(w_) * int(sz * 1.28) <= room:
+                hf, ls = f, w_
+                break
+        if hf is None:
+            hf = font("Black", sizes[-1])
+            n = max(1, min(maxl, room // int(hf.size * 1.28)))
+            ls = wrap(d, head.strip(), hf, width)
+            if len(ls) > n:
+                ls = ls[:n]; ls[-1] = ls[-1].rstrip("،.") + "…"
+        lh = int(hf.size * 1.28)
+        y = top + (max(0, (room - len(ls) * lh) // 2) if not pic else 0)
         lw = int(tw(d, label, lf)) + 40
         d.rounded_rectangle((x1 - lw, y, x1, y + lf.size + 24), radius=12, fill=col)
         at_right(d, x1 - 20, y + 8, label, lf, WHITE if col != GOLD else BG)
         y += lf.size + 50
-        if who:
-            wf = font("Black", 52 if tag == "wide" else 72)
+        if wf:
             for k in range(4, 0, -1):
                 at_right(d, x1 + k, y + k, who.strip() + ":", wf, (6, 12, 30))
             at_right(d, x1, y, who.strip() + ":", wf, GOLD)
             y += int(wf.size * 1.35)
-        room = (Hd - 40 - y)
-        hf, ls = _fit_lines(d, head.strip(), "Black", width, 3 if tag == "wide" else 4,
-                            (84, 76, 68, 60, 54) if tag == "wide" else (110, 100, 90, 80, 72))
-        lh = int(hf.size * 1.28)
         for ln in ls:
-            if y + lh > Hd - 30:
-                break
             for k in range(5, 0, -1):
                 at_right(d, x1 + k, y + k, ln, hf, (6, 12, 30))
             at_right(d, x1, y, ln, hf, WHITE)

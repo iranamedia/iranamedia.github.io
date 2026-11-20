@@ -332,7 +332,7 @@ def facebook(b, mp4, feed=True):
     page, tok = os.environ.get("META_PAGE_ID"), os.environ.get("META_PAGE_TOKEN")
     if not (page and tok): return "skip"
     tok = page_token(page, tok)
-    th = os.path.join(os.path.dirname(os.environ.get("TV_WIDE", "")), "thumb_wide.jpg")
+    th = os.path.join(os.path.dirname(os.environ.get("TV_WIDE", "")), "thumb_wide.jpg" if feed else "thumb_tall.jpg")
     prev_fb = tv_last().get("facebook")
     data, ctype = multipart({"access_token": tok, "title": title_of(b, 250),
                              "description": caption(b) + (f"\n\n▶️ برنامه‌ی پیشین سیمای ایرانا: https://www.facebook.com/{page}/videos/{prev_fb}"
