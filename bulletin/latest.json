@@ -1,6 +1,10 @@
 {
- "stamp": "ساعت ۱۵ به وقت تهران، آدینه ۲۹ آبان سال ۲۵۸۵",
+ "stamp": "ساعت ۱۶ به وقت تهران، آدینه ۲۹ آبان سال ۲۵۸۵",
  "items": [
+  {
+   "title": "رویترز: مجلس سنای آمریکا طرح محدود کردن اختیارات جنگی ترامپ علیه جمهوری اسلامی را رد کرد",
+   "body": "به گزارش رویترز، مجلس سنای آمریکا پنجشنبه ۲۸ آبان با ۵۱ رأی در برابر ۴۸ رأی، طرحی را که اختیارات جنگی دونالد ترامپ را در جنگ با جمهوری اسلامی محدود می‌کرد، رد کرد. جمهوری‌خواهان سنا با این رأی تازه‌ترین تلاش برای مهار اختیارات جنگی رئیس‌جمهور آمریکا را ناکام گذاشتند. با این رأی، عملیات نظامی آمریکا علیه جمهوری اسلامی بدونِ نیاز به مجوز تازه‌ی کنگره ادامه می‌یابد."
+  },
   {
    "title": "بلومبرگ: حمله‌ها به نفتکش‌ها در تنگه هرمز شدت گرفته است",
    "body": "به گزارش بلومبرگ، حمله به نفتکش‌ها در تنگه هرمز که در مهرماه افزایش یافته بود، در آبان‌ماه نیز ادامه دارد و سازمان عملیات دریایی بریتانیا تقریباً هر روز یک حمله ثبت کرده است؛ نزدیک به ۱۴ رویداد از ۱۰ آبان تاکنون. بنا بر برآورد شرکت کپلر، گذر نفت از تنگه هرمز تا ۱۹ آبان به حدود ۱۰ میلیون بشکه در روز رسید، در برابر ۱۳٫۴ میلیون بشکه در ۱۰ آبان. کویت درباره‌ی حمله به هشت نفتکش خود به سازمان بین‌المللی دریانوردی نامه نوشته است. همزمان بهای نفت برنت از ۱۰ آبان حدود یک‌پنجم کاهش یافته است."
@@ -31,12 +35,37 @@
   }
  ],
  "sources": [
-  {"name": "بلومبرگ", "url": "https://www.newstribune.com/news/2026/nov/20/iran-intensifies-hormuz-tanker-attacks-just-as/"},
-  {"name": "مرکز مشترک اطلاعات دریایی / بلومبرگ", "url": "https://gulfnews.com/world/mena/middle-east-war-riyadh-skyscraper-damaged-tanker-hit-near-oman-as-trump-weighs-fresh-iran-strikes-1.500752996"},
-  {"name": "هرانا", "url": "https://www.en-hrana.org/"},
-  {"name": "هرانا", "url": "https://www.en-hrana.org/"},
-  {"name": "خبرگزاری فرانسه", "url": "https://gulfnews.com/world/mena/middle-east-war-riyadh-skyscraper-damaged-tanker-hit-near-oman-as-trump-weighs-fresh-iran-strikes-1.500752996"},
-  {"name": "رویترز", "url": "https://english.aawsat.com/world/5343531-trump-says-no-rush-iran-decision-looks-next-year"},
-  {"name": "تلگرام رسمی شهریار ایران", "url": "https://t.me/OfficialRezaPahlavi/1919"}
+  {
+   "name": "رویترز",
+   "url": "https://www.ksl.com/article/51483988/senate-republicans-block-latest-bid-to-rein-in-trump-iran-war-powers"
+  },
+  {
+   "name": "بلومبرگ",
+   "url": "https://www.newstribune.com/news/2026/nov/20/iran-intensifies-hormuz-tanker-attacks-just-as/"
+  },
+  {
+   "name": "مرکز مشترک اطلاعات دریایی / بلومبرگ",
+   "url": "https://gulfnews.com/world/mena/middle-east-war-riyadh-skyscraper-damaged-tanker-hit-near-oman-as-trump-weighs-fresh-iran-strikes-1.500752996"
+  },
+  {
+   "name": "هرانا",
+   "url": "https://www.en-hrana.org/"
+  },
+  {
+   "name": "هرانا",
+   "url": "https://www.en-hrana.org/"
+  },
+  {
+   "name": "خبرگزاری فرانسه",
+   "url": "https://gulfnews.com/world/mena/middle-east-war-riyadh-skyscraper-damaged-tanker-hit-near-oman-as-trump-weighs-fresh-iran-strikes-1.500752996"
+  },
+  {
+   "name": "رویترز",
+   "url": "https://english.aawsat.com/world/5343531-trump-says-no-rush-iran-decision-looks-next-year"
+  },
+  {
+   "name": "تلگرام رسمی شهریار ایران",
+   "url": "https://t.me/OfficialRezaPahlavi/1919"
+  }
  ]
 }
