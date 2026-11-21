@@ -12,6 +12,7 @@ jobs:
       - run: python3 tools/geo_build.py
       - name: آزمون نام کانال‌ها
         run: |
+          set +e
           for c in hengaw hengawo Hengaw_Org hengaworg kurdpa kurdpa_net kurdpaagency Kurdpa_Agency Tasvir1500 tasvir_1500 Tasvir_1500 vahidonline hra_news hranews; do
             t=$(curl -sL -A "Mozilla/5.0" "https://t.me/s/$c" | grep -o '<meta property="og:title" content="[^"]*"' | head -1)
             n=$(curl -sL -A "Mozilla/5.0" "https://t.me/s/$c" | grep -c 'tgme_widget_message_photo_wrap')
