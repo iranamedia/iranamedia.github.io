@@ -1,0 +1,25 @@
+name: ساخت داده‌ی نقشه‌ی ایران (یک‌بار) و آزمون کانال‌های رویداد
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  geo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 tools/geo_build.py
+      - name: آزمون نام کانال‌ها
+        run: |
+          for c in hengaw hengawo Hengaw_Org hengaworg kurdpa kurdpa_net kurdpaagency Kurdpa_Agency Tasvir1500 tasvir_1500 Tasvir_1500 vahidonline hra_news hranews; do
+            t=$(curl -sL -A "Mozilla/5.0" "https://t.me/s/$c" | grep -o '<meta property="og:title" content="[^"]*"' | head -1)
+            n=$(curl -sL -A "Mozilla/5.0" "https://t.me/s/$c" | grep -c 'tgme_widget_message_photo_wrap')
+            echo "$c => $t | photos: $n"
+          done
+      - name: ثبت
+        run: |
+          git add assets/geo/iran.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "داده‌ی نقشه‌ی ایران [skip ci]"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
