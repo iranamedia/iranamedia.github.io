@@ -172,7 +172,7 @@ ITEMS = int(os.environ.get("RADIO_ITEMS", "5"))        # شمار خبرهای �
 def script(b):
     """متن گفتاری خبرها، پس از سرآغاز: سه خبر نخست کامل، بقیه چکیده (برای صرفه‌جویی در اعتبار گفتار)."""
     parts = [plain(it["body"]) if i < FULL else brief(plain(it["body"])) for i, it in enumerate(b["items"][:ITEMS])]  # بی‌تیتر
-    parts.append("رسانه ایرانا ... تازه‌ترین رویدادهای ایران را سر ساعت آینده بشنوید.")
+    parts.append("رسانه ایرانا ... تازه‌ترین رویدادهای ایران را سر ساعت آینده پِی گیرید.")
     return parts
 
 
