@@ -26,9 +26,11 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
         run: python3 tools/prince_feeds.py bulletin/prince_feeds.json
+      - name: کانال‌های رویداد (هه‌نگاو، کُردپا، ۱۵۰۰ تصویر، هرانا) — برای عکس سرنما
+        run: python3 tools/event_tg.py bulletin/events.json || true
       - name: ثبت
         run: |
-          git add bulletin/prince_telegram.json bulletin/prince_feeds.json
+          git add bulletin/prince_telegram.json bulletin/prince_feeds.json bulletin/events.json
           if git diff --cached --quiet; then echo "بی‌تغییر"; exit 0; fi
           git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "پیام‌های شهریار ایران (تلگرام، اِکس، اینستاگرام) [skip ci]"
           for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done

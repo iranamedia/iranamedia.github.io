@@ -615,12 +615,24 @@ def accent_of(it):
     return "خبر نخست", (60, 120, 220)
 
 
+THUMB_CREDIT = {"text": ""}
+
+
 def thumb_picture(b, wide, shots, intro_len):
-    """عکس سرنما، تنها از خود رویداد: عکس شهریار ایران (اگر خبر ایشان نخست است) یا نمایی از پیام ویدیویی ایشان.
-    نگاره‌ی گویندگان و فیلم نمادین هرگز در سرنما نمی‌آید؛ بی‌عکسِ رویداد، سرنما تنها نوشته است."""
+    """عکس سرنما، تنها از خود رویداد: عکس شهریار ایران (اگر خبر ایشان نخست است) یا نمایی از پیام ویدیویی ایشان؛
+    برای خبرهای دیگر، عکس رویداد از ربات یا کانال‌های رویداد (چهره‌ها تار)، وگرنه نقشه‌ی جای رویداد (tools/event_photo.py).
+    نگاره‌ی گویندگان و فیلم نمادین هرگز در سرنما نمی‌آید؛ بی‌هیچ‌کدام، سرنما تنها نوشته است."""
     it = b["items"][0]
+    THUMB_CREDIT["text"] = ""
     if not PRINCE.search(it.get("title", "")):
-        return None
+        try:
+            sys.path.insert(0, os.path.join(HERE, "tools"))
+            import event_photo
+            pic, THUMB_CREDIT["text"] = event_photo.pick(it, accent_of(it)[0])
+            return pic
+        except Exception as e:
+            print("نگاره‌ی رویداد:", e, flush=True)
+            return None
     photos = prince_photos()
     if photos:
         k = sum(map(ord, b.get("stamp", ""))) % len(photos)          # هر بخش، عکسی دیگر
@@ -676,10 +688,13 @@ def make_thumbs(b, wide, shots, intro_len):
             im = Image.fromarray(np.clip(base * (1 - g) + np.array(col, np.float32) * g, 0, 255).astype(np.uint8))
         if pic:                                            # عکس: نیمه‌ی چپ (خوابیده) یا بالا (ایستاده)، آمیخته با زمینه
             pw, ph = (int(Wd * 0.50), Hd) if tag == "wide" else (Wd, int(Hd * 0.46))
-            r = max(pw / pic.width, ph / pic.height)
-            p = pic.resize((int(pic.width * r) + 1, int(pic.height * r) + 1), Image.LANCZOS)
-            top = 0 if (PRINCE.search(title) and tag == "wide") else (p.height - ph) // 3
-            p = p.crop(((p.width - pw) // 2, top, (p.width - pw) // 2 + pw, top + ph))
+            if callable(pic):                              # نقشه‌ی جای رویداد، به اندازه‌ی همین قاب
+                p = pic(pw, ph, col)
+            else:
+                r = max(pw / pic.width, ph / pic.height)
+                p = pic.resize((int(pic.width * r) + 1, int(pic.height * r) + 1), Image.LANCZOS)
+                top = 0 if (PRINCE.search(title) and tag == "wide") else (p.height - ph) // 3
+                p = p.crop(((p.width - pw) // 2, top, (p.width - pw) // 2 + pw, top + ph))
             m = Image.new("L", (pw, ph), 255)
             md = ImageDraw.Draw(m)
             fade = int(pw * 0.35) if tag == "wide" else int(ph * 0.30)
@@ -690,6 +705,13 @@ def make_thumbs(b, wide, shots, intro_len):
                 else:
                     md.line([(0, ph - 1 - k), (pw, ph - 1 - k)], fill=a)
             im.paste(p, (0, 0), m)
+            if THUMB_CREDIT["text"]:                       # یادکرد سرچشمه‌ی عکس
+                cd = ImageDraw.Draw(im)
+                cf = font("Medium", 22 if tag == "wide" else 30)
+                cw = int(tw(cd, THUMB_CREDIT["text"], cf)) + 24
+                cy = (Hd - 14 - cf.size - 26) if tag == "wide" else (ph - cf.size - 26)
+                cd.rounded_rectangle((14, cy, 14 + cw, cy + cf.size + 14), radius=8, fill=(6, 12, 30))
+                at_right(cd, 14 + cw - 12, cy + 5, THUMB_CREDIT["text"], cf, MIST)
         if tag == "tall":                                  # سایه‌ی بالا تا نام و ساعت روی عکس خوانا باشد
             sh = Image.new("L", (Wd, 300), 0)
             sd = ImageDraw.Draw(sh)

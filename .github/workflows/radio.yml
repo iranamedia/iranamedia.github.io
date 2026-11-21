@@ -181,6 +181,7 @@ jobs:
           fi
           sudo cp .tools/ff* /usr/local/bin/
           pip install -q --break-system-packages pillow numpy
+          pip install -q --break-system-packages opencv-python-headless || echo "چهره‌یاب نصب نشد؛ عکس کانال‌ها به کار نمی‌رود"
           if ! python3 -c "from PIL import features; assert features.check('raqm')" 2>/dev/null; then
             timeout 150 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq || true
             timeout 150 sudo apt-get install -y -qq --no-install-recommends libraqm0 libfribidi0 libharfbuzz0b || true

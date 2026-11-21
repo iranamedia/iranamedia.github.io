@@ -21,7 +21,7 @@ jobs:
         run: python3 tools/bot_inbox.py
       - name: ثبت
         run: |
-          git add assets/prince bulletin/bot_inbox.json
+          mkdir -p assets/events && git add assets/prince assets/events bulletin/bot_inbox.json
           if git diff --cached --quiet; then echo "چیزی تازه نیست"; exit 0; fi
-          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "ویدیو یا عکس تازه‌ی شهریار ایران از ربات [skip ci]"
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "ویدیو یا عکس تازه از ربات (شهریار ایران یا رویداد) [skip ci]"
           for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
