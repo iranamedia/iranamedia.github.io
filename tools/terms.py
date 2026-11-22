@@ -90,7 +90,15 @@ def no_origin(text):
             return m.group(1) + m.group(2)
         return m.group(0)
     text = re.sub(rf"(?<![\w\u200c])({PEOPLE})((?:{ZW}(?:سیاسی|مدنی|عقیدتی))?){ZW}([\w\u200c]+ی)(?![\w\u200c])", demonym, text)
-    text = re.sub(rf"(?<![\w\u200c])({PEOPLE})((?:{ZW}(?:سیاسی|مدنی|عقیدتی))?)،?{ZW}اهل{ZW}[\w\u200c]+(?:{ZW}و{ZW}[\w\u200c]+)?(?=[\s،.؛:]|$)", r"\1\2", text)
+    def origin(m):                                    # «اهل X» تنها هنگامی می‌رود که جای رویداد جای دیگری در خبر آمده باشد
+        place = m.group(3)
+        rest = text[:m.start()] + text[m.end():]
+        return m.group(1) + m.group(2) if re.search(rf"(?<![\w\u200c]){re.escape(place)}(?![\w\u200c])", rest) else m.group(0)
+    text = re.sub(rf"(?<![\w\u200c])({PEOPLE})((?:{ZW}(?:سیاسی|مدنی|عقیدتی))?)،?{ZW}اهل{ZW}([\w\u200c]+(?:{ZW}و{ZW}[\w\u200c]+)?)(?=[\s،.؛:]|$)", origin, text)
+    # «شهروند» نه: در برون‌مرز «ایرانی» («شهروند ایرانی» ← «ایرانی»)، در جاهای دیگر «تن» («یک شهروند» ← «یک تن»)
+    text = re.sub(rf"(?<![\w\u200c])شهروندان{ZW}ایرانی(?![\w\u200c])", "ایرانیان", text)
+    text = re.sub(rf"(?<![\w\u200c])شهروند{ZW}(?=ایرانی)", "", text)
+    text = re.sub(r"(?<![\w\u200c])شهروند(?![\w\u200c])", "تن", text)
     return text
 
 
