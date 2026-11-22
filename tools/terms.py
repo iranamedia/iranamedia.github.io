@@ -64,9 +64,40 @@ def own_trade(sentence):
     return sentence
 
 
+# شناسه‌ی شهری و استانی هم نمی‌آید: «زندانی تهرانی/گیلانی/اهوازی» ← «زندانی»؛ «شهروند اهل سراوان» ← «شهروند»
+_PLACES = None
+
+
+def _places():
+    global _PLACES
+    if _PLACES is None:
+        try:
+            g = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "geo", "iran.json"), encoding="utf-8"))
+            _PLACES = {k.replace("\u200c", "") for k in g.get("places", {})}
+        except Exception:
+            _PLACES = set()
+        _PLACES |= {"تهران", "گیلان", "مازندران", "خوزستان", "لرستان", "کردستان", "آذربایجان", "خراسان", "سیستان",
+                    "بلوچستان", "کرمانشاه", "ایلام", "اصفهان", "شیراز", "فارس", "مشهد", "تبریز", "اهواز", "رشت", "کرمان",
+                    "یزد", "قزوین", "زنجان", "همدان", "اردبیل", "هرمزگان", "بوشهر", "گلستان", "سمنان", "قم", "مرکزی", "البرز"}
+    return _PLACES
+
+
+def no_origin(text):
+    def demonym(m):
+        w = m.group(3)
+        base = w[:-1].rstrip("\u200c")
+        if w.endswith("ی") and base not in ("ایران", "سیاس", "مدن", "عقیدت") and (base in _places() or base[:-1] in _places()):
+            return m.group(1) + m.group(2)
+        return m.group(0)
+    text = re.sub(rf"(?<![\w\u200c])({PEOPLE})((?:{ZW}(?:سیاسی|مدنی|عقیدتی))?){ZW}([\w\u200c]+ی)(?![\w\u200c])", demonym, text)
+    text = re.sub(rf"(?<![\w\u200c])({PEOPLE})((?:{ZW}(?:سیاسی|مدنی|عقیدتی))?)،?{ZW}اهل{ZW}[\w\u200c]+(?:{ZW}و{ZW}[\w\u200c]+)?(?=[\s،.؛:]|$)", r"\1\2", text)
+    return text
+
+
 def fix(text):
     for pat, rep in TERMS:
         text = re.sub(pat, rep, text)
+    text = no_origin(text)
     text = fix_dates(text)                          # تاریخ‌ها بر پایه‌ی گاهنامه‌ی ایرانی
     return "".join(own_trade(p) for p in re.split(r"(?<=[.!؟?؛])", text))
 
