@@ -15,13 +15,25 @@
   },
   {
    "title": "هەنگاو: اعدام پنهانی محمد اربابی در زاهدان و دو زندانی در شیراز",
-   "body": "هەنگاو همچنین گزارش می‌دهد که جمهوری اسلامی محمد اربابی را در زندان زاهدان به‌طور پنهانی اعدام کرده است. دو زندانی دیگر، از جمله علی اردلی، نیز در زندان عادل‌آباد شیراز اعدام شده‌اند."
+   "body": "هەنگاو همچنین گزارش می‌دهد که جمهوری اسلامی محمد اربابی را در زندان زاهدان به‌طور پنهانی اعدام کرده و دو زندانی دیگر را نیز در شیراز اعدام کرده است."
   }
  ],
  "sources": [
-  {"name": "هەنگاو", "url": "https://hengaw.org/en/content/news-sentences-2026-11-23-18283"},
-  {"name": "AFP و رویترز", "url": "https://www.aljazeera.com/news/2026/11/23/iran-says-it-will-use-all-available-means-to-counter-us-blockade"},
-  {"name": "هەنگاو", "url": "https://hengaw.org/en/content/news-detention-2026-11-23-18280"},
-  {"name": "هەنگاو", "url": "https://hengaw.org/en/content/news-execution-2026-11-22-18274"}
+  {
+   "name": "هەنگاو",
+   "url": "https://hengaw.org/en/content/news-sentences-2026-11-23-18283"
+  },
+  {
+   "name": "AFP و رویترز",
+   "url": "https://www.aljazeera.com/news/2026/11/23/iran-says-it-will-use-all-available-means-to-counter-us-blockade"
+  },
+  {
+   "name": "هەنگاو",
+   "url": "https://hengaw.org/en/content/news-detention-2026-11-23-18280"
+  },
+  {
+   "name": "هەنگاو",
+   "url": "https://hengaw.org/en/content/news-execution-2026-11-22-18274"
+  }
  ]
 }
