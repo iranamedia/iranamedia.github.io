@@ -30,6 +30,22 @@ env:
   TOOLS_VERSION: "2026-11-11"           # برای ffmpeg تازه‌تر، این را دگرگون کنید (پس از آزمودن)
   FFMPEG_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
 jobs:
+  feeds:
+    # تلگرام شهریار ایران و کانال‌های رویداد، هر ساعت با خود خبرنامه (زمان‌بندی GitHub گاهی ساعت‌ها جا می‌اندازد)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          python3 tools/prince_tg.py bulletin/prince_telegram.json || true
+          python3 tools/event_tg.py bulletin/events.json || true
+          git add bulletin/prince_telegram.json bulletin/events.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "تلگرام شهریار ایران و کانال‌های رویداد [skip ci]"
+          for i in 1 2 3 4; do git pull -q --rebase && git push -q && break; sleep 7; done
   radio:
     name: ساختن رادیو
     runs-on: ubuntu-latest
