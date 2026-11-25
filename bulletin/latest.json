@@ -1,8 +1,8 @@
 {
- "stamp": "ساعت ۸ به وقت تهران، چهارشنبه ۴ آذر سال ۲۵۸۵",
+ "stamp": "ساعت ۹ به وقت تهران، چهارشنبه ۴ آذر سال ۲۵۸۵",
  "items": [
   {
-   "title": "سازمان حقوق بشر ایران: میلاد آرمون و نوید نجاران در خطر اعدام در زندان قزلحصار",
+   "title": "سازمان حقوق بشر ایران: میلاد آرمون و نوید نجاران امروز در زندان قزلحصار در خطر اعدام‌اند",
    "body": "سازمان حقوق بشر ایران سه‌شنبه ۳ آذر هشدار داد که میلاد آرمون ۲۷ ساله و نوید نجاران ۳۴ ساله، از بازداشت‌شدگان خیزش سراسری ۲۵۸۱، بامداد چهارشنبه ۴ آذر در زندان قزلحصار کرج اعدام می‌شوند. به گزارش این سازمان مدافع حقوق بشر، این دو تن از شنبه ۳۰ آبان به سلول انفرادی برده شده‌اند. مراجع قضایی جمهوری اسلامی در تهران آنان را در پرونده‌ی موسوم به «اکباتان»، درباره‌ی مرگ یک عضو بسیج، به اتهام «افساد فی‌الارض» به اعدام محکوم کرده بودند و این حکم تأیید شده است. محمود امیری‌مقدم، رئیس این سازمان، از سازمان ملل و دولت‌ها خواست پیش از اجرای حکم دست به کار شوند؛ وکیلان این دو تن از شکنجه، اعتراف اجباری و محرومیت از وکیل سخن گفته‌اند."
   },
   {
@@ -23,9 +23,21 @@
   }
  ],
  "sources": [
-  {"name": "سازمان حقوق بشر ایران (IHR)", "url": "https://iranhr.net/en/articles/9219/"},
-  {"name": "آسوشیتدپرس", "url": "https://www.clickondetroit.com/news/world/2026/11/24/iran-insists-no-talks-with-the-us-until-its-7-conditions-are-met-and-other-mideast-news/"},
-  {"name": "سپاه پاسداران انقلاب اسلامی، حاتمی (ABC News)", "url": "https://abcnews.com/International/live-updates/iran-live-updates-tehran-strait-hormuz-safe-demands/?id=138369648"},
-  {"name": "هه‌نگاو (اراک)", "url": "https://hengaw.org/en/content/news-execution-2026-11-23-18287"}
+  {
+   "name": "سازمان حقوق بشر ایران (IHR)",
+   "url": "https://iranhr.net/en/articles/9219/"
+  },
+  {
+   "name": "آسوشیتدپرس",
+   "url": "https://www.clickondetroit.com/news/world/2026/11/24/iran-insists-no-talks-with-the-us-until-its-7-conditions-are-met-and-other-mideast-news/"
+  },
+  {
+   "name": "سپاه پاسداران انقلاب اسلامی، حاتمی (ABC News)",
+   "url": "https://abcnews.com/International/live-updates/iran-live-updates-tehran-strait-hormuz-safe-demands/?id=138369648"
+  },
+  {
+   "name": "هه‌نگاو (اراک)",
+   "url": "https://hengaw.org/en/content/news-execution-2026-11-23-18287"
+  }
  ]
 }
