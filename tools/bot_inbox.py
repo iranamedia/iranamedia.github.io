@@ -61,9 +61,9 @@ for u in updates:
         api("sendMessage", chat_id=m["chat"]["id"], text="این فایل بزرگ‌تر از ۲۰ مگابایت است و ربات نمی‌تواند آن را بگیرد. لطفاً تکه‌ای کوتاه‌تر بفرستید.")
         continue
     f = api("getFile", file_id=media["file_id"])
-    day = datetime.datetime.fromtimestamp(m.get("forward_date") or m["date"], datetime.timezone.utc).strftime("%Y-%m-%d")
+    day = datetime.datetime.fromtimestamp(m.get("forward_date") or (m.get("forward_origin") or {}).get("date") or m["date"], datetime.timezone.utc).strftime("%Y-%m-%d")
     name = f"{day}_{m['message_id']}{ext}"
-    fwd = m.get("forward_from_chat") or {}
+    fwd = m.get("forward_from_chat") or (m.get("forward_origin") or {}).get("chat") or {}   # Bot API نو: forward_origin
     prince = (fwd.get("username", "").lower() == "officialrezapahlavi") or bool(PRINCE.search(m.get("caption", "") + " " + fwd.get("title", "")))
     where = DIR if prince else EV_DIR
     os.makedirs(where, exist_ok=True)
