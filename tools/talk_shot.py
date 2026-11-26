@@ -19,8 +19,12 @@ os.makedirs(tv.TALK_DIR, exist_ok=True)
 t0 = time.time()
 
 wav = os.path.join(work, "voice.wav")
-subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{shot.get('talk_start', shot['start']):.3f}", "-t", f"{shot['on_cam']:.3f}",
-                "-i", os.path.join(tv.SITE, "latest.mp3"), "-ar", "16000", "-ac", "1", wav], check=True)
+if shot.get("silent"):                                # گوینده‌ی خاموش (نمای دو نفره): تنها پلک و جنبش آرام چهره
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono",
+                    "-t", f"{shot['on_cam']:.3f}", wav], check=True)
+else:
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{shot.get('talk_start', shot['start']):.3f}", "-t", f"{shot['on_cam']:.3f}",
+                    "-i", os.path.join(tv.SITE, "latest.mp3"), "-ar", "16000", "-ac", "1", wav], check=True)
 photo = tv.studio_photo(shot["voice"], shot.get("mood", ""))
 cmd = [sys.executable, "inference.py", "--driven_audio", wav, "--source_image", photo, "--result_dir", work,
        "--preprocess", "full", "--size", "256", "--cpu", "--batch_size", "4", "--still"]

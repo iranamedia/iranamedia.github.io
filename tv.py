@@ -392,6 +392,8 @@ WARDROBE = {"man": [None, 345, 150, 25, 215, 280], "woman": [None, 210, 345, 150
 WARDROBE_FIROOZEH = [(120, 22, 44), (24, 64, 140), (18, 96, 74), (96, 34, 120), None, (18, 104, 124)]
 # پهنای شانه‌ها و بالای سر در عکس‌ها (پیکسل، از نقاب گوینده) برای هم‌اندازه و هم‌سر کردن گوینده‌ها در نمای دو نفره
 BODY = {"man": {"shoulders": 843, "top": 78}, "firoozeh": {"shoulders": 1724, "top": 32}}
+MAN_TWO = 1.08          # بکتاش در نمای دو نفره کمی بزرگ‌تر
+CHIN = {"man": 0.56, "woman": 0.55, "firoozeh": 0.64}   # زیر چانه در قاب استودیو (برای چهره‌ی گویا در نمای دو نفره)
 
 
 def wardrobe_index():
@@ -922,7 +924,7 @@ def studio_two():
         img.convert("RGB").filter(ImageFilter.GaussianBlur(2)).save(os.path.join(OUT, "studio_two_back.png"))
         people = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         target_h, desk_top = int(H * 0.54), int(H * 0.72)
-        placed = {}
+        placed, place = {}, {}
         for voice, cx, mp in (("man", int(W * 0.23), masks[0]), ("woman", int(W * 0.77), masks[1])):
             ph = dressed(voice).convert("RGBA")
             ph.putalpha(Image.open(mp).convert("L").resize(ph.size))
@@ -932,22 +934,33 @@ def studio_two():
             ph = ph.crop(bb)
             if fz and "man" in placed:
                 msc, mtop = placed["man"]
-                sc = msc * BODY["man"]["shoulders"] / BODY["firoozeh"]["shoulders"]      # پیکرها هم‌اندازه
+                sc = msc / MAN_TWO * BODY["man"]["shoulders"] / BODY["firoozeh"]["shoulders"]   # پیکرها هم‌اندازه
                 y_head = mtop + BODY["man"]["top"] * msc                                   # بالای سرها هم‌تراز
                 ph = ph.resize((int(ph.width * sc), int(ph.height * sc)), Image.LANCZOS)
                 y = int(y_head - (BODY["firoozeh"]["top"] - bb[1]) * sc)
             else:
-                sc = target_h / ph.height
+                sc = target_h * (MAN_TWO if voice == "man" else 1.0) / ph.height
                 ph = ph.resize((int(ph.width * sc), int(ph.height * sc)), Image.LANCZOS)
                 y = desk_top + 40 - ph.height
             placed[voice] = (sc, y - bb[1] * sc)       # بزرگ‌نمایی و جای لبه‌ی بالای عکس
+            gap = desk_top + 30 - (y + ph.height)
+            if gap > 0:                                # پیکر به میز نمی‌رسد: پایین جامه کشیده می‌شود تا پشت میز
+                strip = ph.crop((0, ph.height - max(8, ph.height // 25), ph.width, ph.height))
+                ext = Image.new("RGBA", (ph.width, ph.height + gap), (0, 0, 0, 0))
+                ext.paste(ph, (0, 0)); ext.paste(strip.resize((ph.width, gap + 2)), (0, ph.height - 2))
+                ph = ext
             sh = Image.new("RGBA", ph.size, (0, 0, 0, 0))
             sh.putalpha(ph.getchannel("A").point(lambda a: int(a * 0.45)))
             x = cx - ph.width // 2
+            dw, dh = dressed(voice).size                 # برای چهره‌ی گویا: جای قاب استودیوی او در این نما
+            ch = int(dh * PHOTO_KEEP); cw = min(dw, ch * 16 // 9)
+            place[voice] = {"sc": sc, "x": x + ((dw - cw) // 2 - bb[0]) * sc, "y": y - bb[1] * sc,
+                            "w": cw * sc, "h": ch * sc}
             for lay in (img, people):
                 lay.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)), (x + 12, y + 10))
                 lay.alpha_composite(ph, (x, y))
         people.save(os.path.join(OUT, "studio_two_people.png"))
+        json.dump(place, open(os.path.join(OUT, "studio_two_place.json"), "w"))
         desk = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         for lay in (img, desk):
             d = ImageDraw.Draw(lay)                    # میز خبر با لبه‌ی زرین
@@ -1029,6 +1042,46 @@ def still_presenter(photo, png, seconds, out):
     clip_presenter(photo, png, seconds, out)
 
 
+def two_people_video(i, seconds):
+    """لایه‌ی گوینده‌های نمای دو نفره، گویا: چهره‌ی بکتاش (تیترها) و پلک و چهره‌ی گوینده‌ی همراه (SadTalker).
+    (ویدیو، نقاب) یا None."""
+    pj, ppl = os.path.join(OUT, "studio_two_place.json"), os.path.join(OUT, "studio_two_people.png")
+    talks = {"man": talk_clip(100 + i), "woman": talk_clip(200 + i)}
+    if not (os.path.exists(pj) and os.path.exists(ppl) and any(talks.values())):
+        return None
+    import numpy as np
+    from PIL import ImageFilter
+    place = json.load(open(pj))
+    pe = Image.open(ppl).convert("RGBA")
+    base, alpha = os.path.join(OUT, "two_people_rgb.png"), os.path.join(OUT, "two_people_alpha.png")
+    pe.convert("RGB").save(base); pe.getchannel("A").save(alpha)
+    args, fc, prev, k = ["-framerate", "25", "-loop", "1", "-i", base], [], "[0:v]", 1
+    for voice, vid in talks.items():
+        if not vid or voice not in place:
+            continue
+        pm = os.path.join(HERE, "assets", f"presenter_{AN(voice)}_person.png")
+        head = os.path.join(OUT, f"two_head_{voice}.png")
+        m = np.asarray(_crop_like_studio(Image.open(pm).convert("L"))).astype(np.float32) / 255
+        rows = np.arange(H, dtype=np.float32)[:, None] / H
+        c = CHIN.get(AN(voice), 0.58) + 0.08
+        m = m * np.clip((c - rows) / 0.06, 0, 1)                    # سر و گردن؛ تن از عکس ثابت
+        Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(4)).save(head)
+        P = place[voice]
+        w2, h2 = int(round(P["w"] / 2)) * 2, int(round(P["h"] / 2)) * 2
+        args += ["-i", vid, "-framerate", "25", "-loop", "1", "-i", head]
+        fc.append(f"[{k}:v]fps=25,scale={W}:{H},setsar=1,format=rgba,tpad=stop_mode=clone:stop_duration=3[t{k}];"
+                  f"[{k + 1}:v]format=gray[h{k}];[t{k}][h{k}]alphamerge,scale={w2}:{h2}[a{k}];"
+                  f"{prev}[a{k}]overlay={int(P['x'])}:{int(P['y'])}:format=auto[o{k}]")
+        prev, k = f"[o{k}]", k + 2
+    out = os.path.join(OUT, f"two_people_{i:02d}.mp4")
+    fc.append(f"{prev}format=yuv420p[v]")
+    try:
+        ff(*args, "-t", f"{seconds + 0.2:.3f}", "-filter_complex", ";".join(fc), "-map", "[v]", *ENC, "-an", out)
+    except subprocess.CalledProcessError:
+        return None
+    return out, alpha
+
+
 def presenter_clip(i, photo, png, seconds, out):
     talk = talk_clip(i)
     if talk:
@@ -1063,11 +1116,14 @@ def build():
                 try:
                     if not (DEPTH and all(os.path.exists(x) for x in lay)):
                         raise subprocess.CalledProcessError(1, "no layers")
+                    tp = two_people_video(i, lead)                 # گوینده‌ها گویا: لب و پلک
+                    people = ({"src": tp[0], "video": True, "mask": tp[1], "zoom": 0.07, "drift": -0.3} if tp
+                              else {"src": lay[1], "zoom": 0.07, "drift": -0.3})
                     clip_parallax([{"src": lay[0], "zoom": 0.03, "drift": 0.5},       # دیوار و نمایشگر
-                                   {"src": lay[1], "zoom": 0.07, "drift": -0.3},      # گوینده‌ها
+                                   people,                                            # گوینده‌ها
                                    {"src": lay[2], "zoom": 0.12, "drift": -0.6}],     # میز (نزدیک‌ترین)
                                   lt, lead, out)
-                    print("نمای دو گوینده: سه‌بعدی", flush=True)
+                    print("نمای دو گوینده: سه‌بعدی" + ("، گویا" if tp else ""), flush=True)
                 except subprocess.CalledProcessError:
                     clip_presenter(two, lt, lead, out)
                 clips.append(out)
@@ -1275,6 +1331,10 @@ if __name__ == "__main__":
         audio, tl = os.path.join(SITE, "latest.mp3"), os.path.join(SITE, "timeline.json")
         shots = plan(bb, audio, tl) if os.path.exists(audio) and os.path.exists(tl) else []
         talk = [s for s in shots if s["on_cam"] > 0.5]
+        for s_ in shots:                                # نمای دو نفره‌ی آغاز: بکتاش گویا، گوینده‌ی همراه پلک می‌زند
+            if s_.get("lead", 0) > 0.5:
+                talk.append({**s_, "i": 100 + s_["i"], "voice": "man", "mood": "", "on_cam": s_["lead"], "talk_start": s_["start"]})
+                talk.append({**s_, "i": 200 + s_["i"], "voice": "woman", "mood": "", "on_cam": s_["lead"], "talk_start": s_["start"], "silent": True})
         json.dump(talk, open(os.path.join(SITE, "talk_plan.json"), "w"), ensure_ascii=False)
         print(json.dumps([s["i"] for s in talk]))
         sys.exit(0)
