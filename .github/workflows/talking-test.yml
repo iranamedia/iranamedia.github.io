@@ -8,6 +8,9 @@ on:
         description: "سر آرام‌تر (still)؛ خاموش = تکان بیشتر سر"
         type: boolean
         default: true
+      cohost:
+        description: "گوینده‌ی همراه (firoozeh یا charlotte)؛ تهی = نوبت خبرنامه"
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -43,6 +46,7 @@ jobs:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           VOICE_ID: ${{ secrets.BAKTASH_VOICE_ID || 'g8OwRTuNvpJKpiVarLb6' }}
           VOICE_ID_2: ${{ secrets.CHARLOTTE_VOICE_ID || 'XB0fDUnXU5powFXDhCwa' }}
+          COHOST: ${{ inputs.cohost }}
           STILL: ${{ inputs.still && '1' || '0' }}
         run: python tools/talking_test.py _sad _talk
       - uses: actions/upload-artifact@v4

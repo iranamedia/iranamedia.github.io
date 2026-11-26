@@ -36,7 +36,7 @@ def current(b=None):
             b = json.load(open(os.path.join(HERE, "bulletin", "latest.json"), encoding="utf-8"))
         except Exception:
             b = {}
-    name = ROTA[slot(b.get("stamp", "")) % len(ROTA)]
+    name = os.environ.get("COHOST") or ROTA[slot(b.get("stamp", "")) % len(ROTA)]   # COHOST: برای آزمون
     if name == "firoozeh" and not (voice_id("firoozeh") and os.path.exists(os.path.join(HERE, "assets", "presenter_firoozeh.jpg"))):
         name = "charlotte"
     return name

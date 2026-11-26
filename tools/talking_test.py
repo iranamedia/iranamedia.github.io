@@ -32,7 +32,9 @@ def short(it):
 
 b = json.load(open(os.path.join(HERE, "bulletin", "latest.json"), encoding="utf-8"))
 tv.fonts()
-parts = [("woman", radio.VOICE_ID_2, b["items"][0], 0), ("man", radio.VOICE_ID, b["items"][1], 1)]
+import cohost  # noqa: E402
+v2 = cohost.voice_id("firoozeh") if cohost.current(b) == "firoozeh" else radio.VOICE_ID_2
+parts = [("woman", v2, b["items"][0], 0), ("man", radio.VOICE_ID, b["items"][1], 1)]
 clips = []
 for who, voice_id, it, n in parts:
     t0 = time.time()
