@@ -388,6 +388,10 @@ def clip_still(png, seconds, out):
 # رنگ لباس گوینده‌ها در هر بخش (کت، کراوات، پیراهن رنگی؛ پیراهن سفید سفید می‌ماند).
 # None = رنگ خود عکس. رنگ‌ها رنگ‌مایه‌ی (hue) درجه‌اند؛ با نقاب لباس assets/presenter_*_clothes.png.
 WARDROBE = {"man": [None, 345, 150, 25, 215, 280], "woman": [None, 210, 345, 150, 265, 15]}
+# کت سیاه فیروزه: در هر بخش رنگی دیگر (رنگ‌آمیزی با نگه‌داشتن سایه‌روشن). None = سیاه خود عکس
+WARDROBE_FIROOZEH = [(120, 22, 44), (24, 64, 140), (18, 96, 74), (96, 34, 120), None, (18, 104, 124)]
+# چهره در عکس‌ها (x, y, پهنا, بلندا) برای هم‌سر کردن گوینده‌ها در نمای دو نفره (با YuNet سنجیده شد)
+FACE = {"man": (872, 182, 271, 369), "firoozeh": (994, 273, 533, 626)}
 
 
 def wardrobe_index():
@@ -426,7 +430,25 @@ def dressed(voice, mood=""):
     if os.path.exists(out):
         return Image.open(out).convert("RGB")
     im = Image.open(src).convert("RGB")
-    hue = None if AN(voice) == "firoozeh" else WARDROBE[voice][wardrobe_index()]   # کت سیاه فیروزه، بی‌رنگ‌آمیزی
+    if AN(voice) == "firoozeh":
+        col = WARDROBE_FIROOZEH[wardrobe_index() % len(WARDROBE_FIROOZEH)]
+        pm = os.path.join(HERE, "assets", "presenter_firoozeh_person.png")
+        if col is not None and os.path.exists(pm):
+            import numpy as np
+            from PIL import ImageFilter
+            rgb = np.asarray(im).astype(np.float32)
+            luma = (rgb @ np.array([0.299, 0.587, 0.114], np.float32)) / 255
+            person = np.asarray(Image.open(pm).convert("L").resize(im.size)).astype(np.float32) / 255
+            rows = np.arange(im.height, dtype=np.float32)[:, None] / im.height
+            m = person * (rows > 0.60) * np.clip((0.30 - luma) / 0.08, 0, 1)            # کت تیره، زیر چانه
+            m = np.asarray(Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3))).astype(np.float32) / 255
+            tint = np.array(col, np.float32)[None, None, :] * np.clip(0.42 + 2.4 * luma, 0, 1.6)[..., None]
+            im = Image.fromarray(np.clip(rgb * (1 - m[..., None]) + tint * m[..., None], 0, 255).astype(np.uint8))
+            print(f"لباس فیروزه: {col}", flush=True)
+        os.makedirs(OUT, exist_ok=True)
+        im.save(out)
+        return im
+    hue = WARDROBE[voice][wardrobe_index()]
     mask_p = os.path.join(HERE, "assets", f"presenter_{AN(voice)}{tag}_clothes.png")
     if hue is not None and os.path.exists(mask_p):
         import numpy as np
@@ -900,17 +922,28 @@ def studio_two():
         img.convert("RGB").filter(ImageFilter.GaussianBlur(2)).save(os.path.join(OUT, "studio_two_back.png"))
         people = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         target_h, desk_top = int(H * 0.54), int(H * 0.72)
+        placed = {}
         for voice, cx, mp in (("man", int(W * 0.23), masks[0]), ("woman", int(W * 0.77), masks[1])):
             ph = dressed(voice).convert("RGBA")
             ph.putalpha(Image.open(mp).convert("L").resize(ph.size))
-            fz = AN(voice) == "firoozeh"                 # عکس فیروزه نزدیک‌تر است: بیشتر از تن، کوچک‌تر
+            fz = AN(voice) == "firoozeh"                 # فیروزه: هم‌سر با بکتاش، چهره‌ها هم‌اندازه و هم‌تراز
             ph = ph.crop((0, 0, ph.width, int(ph.height * (0.97 if fz else 0.74))))   # نوار نوشته‌ی پایین عکس بیرون
-            ph = ph.crop(ph.getbbox())
-            sc = target_h * (0.86 if fz else 1.0) / ph.height
-            ph = ph.resize((int(ph.width * sc), int(ph.height * sc)), Image.LANCZOS)
+            bb = ph.getbbox()
+            ph = ph.crop(bb)
+            if fz and "man" in placed:
+                msc, mtop = placed["man"]
+                sc = msc * FACE["man"][3] / FACE["firoozeh"][3]
+                y_face = mtop + FACE["man"][1] * msc
+                ph = ph.resize((int(ph.width * sc), int(ph.height * sc)), Image.LANCZOS)
+                y = int(y_face - (FACE["firoozeh"][1] - bb[1]) * sc)
+            else:
+                sc = target_h / ph.height
+                ph = ph.resize((int(ph.width * sc), int(ph.height * sc)), Image.LANCZOS)
+                y = desk_top + 40 - ph.height
+            placed[voice] = (sc, y - bb[1] * sc)       # بزرگ‌نمایی و جای لبه‌ی بالای عکس
             sh = Image.new("RGBA", ph.size, (0, 0, 0, 0))
             sh.putalpha(ph.getchannel("A").point(lambda a: int(a * 0.45)))
-            x, y = cx - ph.width // 2, desk_top + 40 - ph.height
+            x = cx - ph.width // 2
             for lay in (img, people):
                 lay.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)), (x + 12, y + 10))
                 lay.alpha_composite(ph, (x, y))
