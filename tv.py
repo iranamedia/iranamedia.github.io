@@ -426,7 +426,7 @@ def dressed(voice, mood=""):
     if os.path.exists(out):
         return Image.open(out).convert("RGB")
     im = Image.open(src).convert("RGB")
-    hue = WARDROBE[voice][wardrobe_index()]
+    hue = None if AN(voice) == "firoozeh" else WARDROBE[voice][wardrobe_index()]   # کت سیاه فیروزه، بی‌رنگ‌آمیزی
     mask_p = os.path.join(HERE, "assets", f"presenter_{AN(voice)}{tag}_clothes.png")
     if hue is not None and os.path.exists(mask_p):
         import numpy as np
@@ -903,10 +903,11 @@ def studio_two():
         for voice, cx, mp in (("man", int(W * 0.23), masks[0]), ("woman", int(W * 0.77), masks[1])):
             ph = dressed(voice).convert("RGBA")
             ph.putalpha(Image.open(mp).convert("L").resize(ph.size))
-            ph = ph.crop((0, 0, ph.width, int(ph.height * 0.74)))       # نوار نوشته‌ی پایین عکس بیرون
+            fz = AN(voice) == "firoozeh"                 # عکس فیروزه نزدیک‌تر است: بیشتر از تن، کوچک‌تر
+            ph = ph.crop((0, 0, ph.width, int(ph.height * (0.97 if fz else 0.74))))   # نوار نوشته‌ی پایین عکس بیرون
             ph = ph.crop(ph.getbbox())
-            sc = target_h / ph.height
-            ph = ph.resize((int(ph.width * sc), target_h), Image.LANCZOS)
+            sc = target_h * (0.86 if fz else 1.0) / ph.height
+            ph = ph.resize((int(ph.width * sc), int(ph.height * sc)), Image.LANCZOS)
             sh = Image.new("RGBA", ph.size, (0, 0, 0, 0))
             sh.putalpha(ph.getchannel("A").point(lambda a: int(a * 0.45)))
             x, y = cx - ph.width // 2, desk_top + 40 - ph.height
