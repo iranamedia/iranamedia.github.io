@@ -26,10 +26,9 @@ jobs:
           f="assets/private/$NAME.seal"
           [ -f "$f" ] || { echo "فایل مهرشده نیست؛ تنها کلید همگانی چاپ شد"; exit 0; }
           python3 tools/seal.py open "$f" "$RUNNER_TEMP/sample.m4a"
-          ffmpeg -v error -y -i "$RUNNER_TEMP/sample.m4a" -ac 1 -ar 44100 -b:a 192k "$RUNNER_TEMP/sample.mp3"
           curl -sS -X POST https://api.elevenlabs.io/v1/voices/add -H "xi-api-key: $ELEVENLABS_API_KEY" \
             --form-string "name=Irana - $NAME" --form-string "description=Irana Media presenter (with the speaker's consent)" \
-            --form-string "remove_background_noise=true" -F "files=@$RUNNER_TEMP/sample.mp3;type=audio/mpeg" -o "$RUNNER_TEMP/r.json"
+            --form-string "remove_background_noise=true" -F "files=@$RUNNER_TEMP/sample.m4a;type=audio/mp4" -o "$RUNNER_TEMP/r.json"
           python3 - <<'PY'
           import json, os
           r = json.load(open(os.environ["RUNNER_TEMP"] + "/r.json"))
