@@ -1,0 +1,48 @@
+name: ساختن آوای گوینده (ElevenLabs، با پروانه‌ی دارنده‌ی آوا)
+# گام ۱ (بی فایل): کلید همگانی مهر را چاپ می‌کند. گام ۲: assets/private/<name>.seal را می‌گشاید، آوا را در ElevenLabs
+# می‌سازد، شناسه‌ی آوا را در bulletin/voices.json می‌نویسد و فایل مهرشده را از مخزن برمی‌دارد.
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "نام گوینده (مانند firoozeh)"
+        default: "firoozeh"
+permissions:
+  contents: write
+jobs:
+  clone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      NAME: ${{ inputs.name }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: pip install -q cryptography
+      - name: کلید همگانی مهر
+        run: python3 tools/seal.py pub
+      - name: ساختن آوا
+        run: |
+          f="assets/private/$NAME.seal"
+          [ -f "$f" ] || { echo "فایل مهرشده نیست؛ تنها کلید همگانی چاپ شد"; exit 0; }
+          python3 tools/seal.py open "$f" "$RUNNER_TEMP/sample.m4a"
+          ffmpeg -v error -y -i "$RUNNER_TEMP/sample.m4a" -ac 1 -ar 44100 -b:a 192k "$RUNNER_TEMP/sample.mp3"
+          curl -sS -X POST https://api.elevenlabs.io/v1/voices/add -H "xi-api-key: $ELEVENLABS_API_KEY" \
+            --form-string "name=Irana - $NAME" --form-string "description=Irana Media presenter (with the speaker's consent)" \
+            --form-string "remove_background_noise=true" -F "files=@$RUNNER_TEMP/sample.mp3;type=audio/mpeg" -o "$RUNNER_TEMP/r.json"
+          python3 - <<'PY'
+          import json, os
+          r = json.load(open(os.environ["RUNNER_TEMP"] + "/r.json"))
+          vid = r.get("voice_id")
+          if not vid:
+              print("ElevenLabs:", json.dumps(r, ensure_ascii=False)[:600]); raise SystemExit(1)
+          p = "bulletin/voices.json"
+          d = json.load(open(p)) if os.path.exists(p) else {}
+          d[os.environ["NAME"]] = vid
+          json.dump(d, open(p, "w"), ensure_ascii=False, indent=1)
+          print("آوا ساخته شد:", os.environ["NAME"], vid)
+          PY
+          git rm -q "$f"
+          git add bulletin/voices.json
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "آوای گوینده $NAME ساخته شد [skip ci]"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
