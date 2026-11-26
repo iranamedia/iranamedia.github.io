@@ -1,0 +1,54 @@
+name: آزمون شناسه‌ی آوا یا کلید ElevenLabs (مهرشده)
+# assets/private/candidate.seal را می‌گشاید (هرگز چاپ نمی‌شود):
+# اگر شناسه‌ی آوا باشد، در bulletin/voices.json می‌نشیند؛ اگر کلید ElevenLabs باشد، با آن آوای فیروزه ساخته می‌شود.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: pip install -q cryptography
+      - run: |
+          python3 tools/seal.py open assets/private/candidate.seal "$RUNNER_TEMP/c"
+          C=$(cat "$RUNNER_TEMP/c"); echo "::add-mask::$C"
+          code=$(curl -s -o "$RUNNER_TEMP/t.mp3" -w '%{http_code}' -X POST "https://api.elevenlabs.io/v1/text-to-speech/$C" \
+            -H "xi-api-key: $ELEVENLABS_API_KEY" -H "Content-Type: application/json" -d '{"text":"سلام","model_id":"eleven_v3"}')
+          echo "آزمون آوا: $code"
+          VID=""
+          if [ "$code" = 200 ]; then VID="$C"; echo "این شناسه‌ی آواست"
+          else
+            ucode=$(curl -s -o /dev/null -w '%{http_code}' https://api.elevenlabs.io/v1/user -H "xi-api-key: $C")
+            vcode=$(curl -s -o /dev/null -w '%{http_code}' https://api.elevenlabs.io/v1/models -H "xi-api-key: $C")
+            echo "آزمون کلید: user=$ucode models=$vcode"
+            if [ "$ucode" = 200 ] || [ "$vcode" = 200 ]; then
+              echo "این یک کلید ElevenLabs است؛ ساختن آوای فیروزه با آن"
+              python3 tools/seal.py open assets/private/firoozeh.seal "$RUNNER_TEMP/s.m4a"
+              curl -sS -X POST https://api.elevenlabs.io/v1/voices/add -H "xi-api-key: $C" \
+                --form-string "name=Irana - firoozeh" --form-string "description=Irana Media presenter (with the speaker's consent)" \
+                --form-string "remove_background_noise=true" -F "files=@$RUNNER_TEMP/s.m4a;type=audio/mp4" -o "$RUNNER_TEMP/r.json"
+              VID=$(python3 -c "import json,os;print(json.load(open(os.environ['RUNNER_TEMP']+'/r.json')).get('voice_id',''))")
+              [ -n "$VID" ] || python3 -c "import json,os;r=json.load(open(os.environ['RUNNER_TEMP']+'/r.json'));print('ElevenLabs:', str(r.get('detail',r))[:400])"
+            fi
+          fi
+          [ -n "$VID" ] || { echo "نه شناسه‌ی آوا بود و نه کلید کارا"; exit 1; }
+          code2=$(curl -s -o "$RUNNER_TEMP/t2.mp3" -w '%{http_code}' -X POST "https://api.elevenlabs.io/v1/text-to-speech/$VID" \
+            -H "xi-api-key: $ELEVENLABS_API_KEY" -H "Content-Type: application/json" -d '{"text":"سلام","model_id":"eleven_v3"}')
+          echo "آوای فیروزه با کلید سیما: $code2"
+          python3 - "$VID" <<'PY'
+          import json, os, sys
+          p = "bulletin/voices.json"
+          d = json.load(open(p)) if os.path.exists(p) else {}
+          d["firoozeh"] = sys.argv[1]
+          json.dump(d, open(p, "w"), indent=1)
+          PY
+          git rm -q assets/private/candidate.seal
+          [ "$code2" = 200 ] && git rm -q assets/private/firoozeh.seal || true
+          git add bulletin/voices.json
+          git -c user.name=irana-bot -c user.email=bot@iranamedia.github.io commit -qm "آوای فیروزه [skip ci]"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
