@@ -47,7 +47,17 @@ PRESENTER = {"man": os.path.join(HERE, "assets", "presenter_man.jpg"),        # 
 # فقط بخش بالای عکس به کار می‌رود (نوار پایینِ عکس بیرون می‌ماند) و نوشته‌های پس‌زمینه مات می‌شوند.
 PHOTO_KEEP = 0.86
 PHOTO_BLUR = {"woman": [(0.66, 0.22, 0.92, 0.50), (0.0, 0.42, 0.34, 0.58), (0.90, 0.22, 1.0, 0.50)],
-              "man": []}
+              "man": [], "firoozeh": [(0.0, 0.0, 0.22, 0.80)]}       # فیروزه: نمایشگرهای کنار چپ
+sys.path.insert(0, os.path.join(HERE, "tools"))
+import cohost                                         # گوینده‌ی همراه بکتاش: یکی در میان فیروزه و شارلوت
+_AN = {}
+
+
+def AN(voice):
+    """نام عکس و نقاب گوینده در assets برای این بخش (woman ← firoozeh در بخش‌های فیروزه)."""
+    if voice not in _AN:
+        _AN[voice] = cohost.asset(voice)
+    return _AN[voice]
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHANNEL = os.environ.get("TELEGRAM_CHANNEL", "@IranaMediaNews")
 PEXELS = os.environ.get("PEXELS_API_KEY", "")
@@ -401,8 +411,10 @@ def mood_of(it):
 
 def photo_src(voice, mood=""):
     if mood == "serious":
-        p = os.path.join(HERE, "assets", f"presenter_{voice}_serious.jpg")
+        p = os.path.join(HERE, "assets", f"presenter_{AN(voice)}_serious.jpg")
         return p if os.path.exists(p) else None
+    if voice == "woman" and AN("woman") == "firoozeh":
+        return os.path.join(HERE, "assets", "presenter_firoozeh.jpg")
     return PRESENTER.get(voice, "")
 
 
@@ -415,7 +427,7 @@ def dressed(voice, mood=""):
         return Image.open(out).convert("RGB")
     im = Image.open(src).convert("RGB")
     hue = WARDROBE[voice][wardrobe_index()]
-    mask_p = os.path.join(HERE, "assets", f"presenter_{voice}{tag}_clothes.png")
+    mask_p = os.path.join(HERE, "assets", f"presenter_{AN(voice)}{tag}_clothes.png")
     if hue is not None and os.path.exists(mask_p):
         import numpy as np
         hsv = np.asarray(im.convert("HSV")).astype(np.float32)
@@ -444,7 +456,7 @@ def studio_photo(voice, mood=""):
     from PIL import ImageFilter
     im = dressed(voice, mood)
     w, h = im.size
-    for x0, y0, x1, y1 in PHOTO_BLUR.get(voice, []):
+    for x0, y0, x1, y1 in PHOTO_BLUR.get(AN(voice), []):
         box = (int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h))
         im.paste(im.crop(box).filter(ImageFilter.GaussianBlur(18)), box)
     ch = int(h * PHOTO_KEEP); cw = min(w, ch * 16 // 9)
@@ -483,7 +495,7 @@ def _fill(arr, hole):
 def depth_layers(voice, mood=""):
     """(پس‌زمینه‌ی بی‌گوینده، نقاب گوینده) در همان برش عکس استودیو؛ None اگر نقاب نباشد."""
     tag = f"_{mood}" if mood else ""
-    mask_src = os.path.join(HERE, "assets", f"presenter_{voice}{tag}_person.png")
+    mask_src = os.path.join(HERE, "assets", f"presenter_{AN(voice)}{tag}_person.png")
     photo = studio_photo(voice, mood)
     if not (DEPTH and photo and os.path.exists(mask_src)):
         return None
@@ -863,7 +875,7 @@ def studio_two():
     out = os.path.join(OUT, "studio_two.png")
     if os.path.exists(out):
         return out
-    masks = [os.path.join(HERE, "assets", f"presenter_{v}_person.png") for v in ("man", "woman")]
+    masks = [os.path.join(HERE, "assets", f"presenter_{AN(v)}_person.png") for v in ("man", "woman")]
     if os.path.exists(PRESENTER["man"]) and all(os.path.exists(m) for m in masks):
         from PIL import ImageEnhance, ImageFilter
         # پس‌زمینه: استودیوی بکتاش (دیوار نقشه‌ی جهان و نمایشگرها)، روشن و تیز؛

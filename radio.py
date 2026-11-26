@@ -436,10 +436,14 @@ def main(src="bulletin/latest.json", dry=False, mode="all"):
             norm(sting, P("01_sting.wav")); seq.append(P("01_sting.wav")); timeline.append({"kind": "sting"})
         story_parts = len(parts) - 1                      # واپسین بخش، سخن پایانی است
         clip = prince_clip(b)
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
+        import cohost                                     # گوینده‌ی همراه: یکی در میان فیروزه و شارلوت
+        COHOST_VOICE = cohost.voice_id("firoozeh") if cohost.current(b) == "firoozeh" else ""
+        print("گوینده‌ی همراه:", cohost.current(b), flush=True)
         for n, cs in enumerate(parts):
             if n: seq.append(P("gap.wav")); timeline.append({"kind": "gap"})
             who = "woman" if n % 2 == 0 else "man"      # دو گوینده، یکی در میان
-            vid = VOICE_ID_2 if who == "woman" else VOICE_ID
+            vid = (COHOST_VOICE or VOICE_ID_2) if who == "woman" else VOICE_ID
             for m, c in enumerate(cs):
                 f = f"b{n:02d}_{m}"
                 print("tts", n, m, who, len(c), tts(c, P(f + ".mp3"), vid))

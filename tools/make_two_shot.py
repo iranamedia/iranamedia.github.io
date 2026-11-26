@@ -28,7 +28,7 @@ bg.paste(left, (0, 0)); bg.paste(right, (W // 2, 0))
 bg.filter(ImageFilter.GaussianBlur(28)).point(lambda v: int(v * 0.72)).save(os.path.join(OUT, "studio_back.png"))
 
 CHIN = 0.47                                         # زیر چانه: لباس؛ بالای آن: چهره و مو
-for name in ("man", "woman", "man_serious", "woman_serious"):     # عکس‌های جدی، اگر باشند
+for name in ("man", "woman", "firoozeh", "man_serious", "woman_serious"):     # عکس‌های جدی، اگر باشند
     if not os.path.exists(A(f"presenter_{name}.jpg")):
         continue
     who = name.split("_")[0]
