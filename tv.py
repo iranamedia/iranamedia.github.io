@@ -871,7 +871,9 @@ def visuals(timeline, n_items):
 
 def plan(b, audio, tl):
     """نماها با زمان آغازشان در صدای رادیو؛ و بخش‌هایی که گوینده روی صفحه است (on_cam)."""
-    shots = visuals(json.load(open(tl, encoding="utf-8"))["segments"], len(b["items"]))
+    segs = json.load(open(tl, encoding="utf-8"))["segments"]
+    greet = next((g.get("greet") for g in segs if g.get("kind") == "head" and g.get("greet")), None)
+    shots = visuals(segs, len(b["items"]))
     scale = dur(audio) / max(sum(s[1] for s in shots), 1)  # هم‌زمانی دقیق با صدای نهایی
     out, t = [], 0.0
     for i, (key, seconds) in enumerate(shots):
@@ -884,9 +886,9 @@ def plan(b, audio, tl):
                 on_cam = min(ON_CAM_MAX, seconds * 0.45)
             elif key[0] == "outro":
                 on_cam = min(ON_CAM_MAX, seconds)
-            elif all(os.path.exists(p) for p in PRESENTER.values()):   # سرآغاز: دو گوینده، سپس بکتاش
-                lead = min(TWO_SHOT, seconds * 0.3)
-                on_cam = max(0.0, min(ON_CAM_MAX, seconds - lead - 3))
+            elif all(os.path.exists(p) for p in PRESENTER.values()):   # سرآغاز: دو گوینده (درود و زمان)، سپس سه تیتر نوشته
+                lead = min(max(greet * scale, 2.5), 9.0, seconds * 0.6) if greet else min(TWO_SHOT, seconds * 0.3)
+                on_cam = 0.0
         out.append({"i": i, "key": list(key), "start": round(t, 3), "seconds": round(seconds, 3),
                     "voice": voice, "mood": mood, "lead": round(lead, 3), "on_cam": round(on_cam, 3),
                     "talk_start": round(t + lead, 3)})

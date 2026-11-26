@@ -261,6 +261,23 @@ def silence(sec, out):
     ff("-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", f"{sec}", "-c:a", "pcm_s16le", out)
 
 
+def greet_end(head, wav, lead=2.0):
+    """پایان درود و گفتن زمان در سرآغاز (ثانیه، از آغاز 00_head.wav): نخستین درنگ گفتار پس از آن؛
+    سیما تا اینجا دو گوینده را نشان می‌دهد و سپس سه تیتر نخست را به گونه‌ی نوشته."""
+    greet = head.split("\n\n")[0]
+    est = dur(wav) * len(greet) / max(len(head), 1)
+    try:
+        r = subprocess.run(["ffmpeg", "-hide_banner", "-i", wav, "-af", "silencedetect=noise=-35dB:d=0.25", "-f", "null", "-"],
+                           capture_output=True, text=True)
+        gaps = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", r.stderr)]
+        near = [g for g in gaps if abs(g - est) < 1.8 and g > 0.8]
+        if near:
+            est = min(near, key=lambda g: abs(g - est))
+    except Exception:
+        pass
+    return round(lead + est + 0.15, 2)
+
+
 def over_bed(voice, out, lead=2.0, tail=1.5):
     """صدای تیترها روی زیرآهنگ: آهنگ با بلندی آغاز می‌شود، زیر صدا پایین می‌رود و در پایان محو می‌شود."""
     bed = os.path.join(ASSETS, "bed.mp3")
@@ -430,7 +447,7 @@ def main(src="bulletin/latest.json", dry=False, mode="all"):
         voice(P("head.mp3"), P("head.wav"))
         over_bed(P("head.wav"), P("00_head.wav"))
         silence(GAP, P("gap.wav"))
-        seq, timeline = [P("00_head.wav")], [{"kind": "head", "voice": "man"}]
+        seq, timeline = [P("00_head.wav")], [{"kind": "head", "voice": "man", "greet": greet_end(head, P("head.wav"))}]
         sting = os.path.join(ASSETS, "sting.mp3")
         if os.path.exists(sting):
             norm(sting, P("01_sting.wav")); seq.append(P("01_sting.wav")); timeline.append({"kind": "sting"})
