@@ -390,8 +390,8 @@ def clip_still(png, seconds, out):
 WARDROBE = {"man": [None, 345, 150, 25, 215, 280], "woman": [None, 210, 345, 150, 265, 15]}
 # کت سیاه فیروزه: در هر بخش رنگی دیگر (رنگ‌آمیزی با نگه‌داشتن سایه‌روشن). None = سیاه خود عکس
 WARDROBE_FIROOZEH = [(120, 22, 44), (24, 64, 140), (18, 96, 74), (96, 34, 120), None, (18, 104, 124)]
-# چهره در عکس‌ها (x, y, پهنا, بلندا) برای هم‌سر کردن گوینده‌ها در نمای دو نفره (با YuNet سنجیده شد)
-FACE = {"man": (872, 182, 271, 369), "firoozeh": (994, 273, 533, 626)}
+# پهنای شانه‌ها و بالای سر در عکس‌ها (پیکسل، از نقاب گوینده) برای هم‌اندازه و هم‌سر کردن گوینده‌ها در نمای دو نفره
+BODY = {"man": {"shoulders": 843, "top": 78}, "firoozeh": {"shoulders": 1724, "top": 32}}
 
 
 def wardrobe_index():
@@ -926,16 +926,16 @@ def studio_two():
         for voice, cx, mp in (("man", int(W * 0.23), masks[0]), ("woman", int(W * 0.77), masks[1])):
             ph = dressed(voice).convert("RGBA")
             ph.putalpha(Image.open(mp).convert("L").resize(ph.size))
-            fz = AN(voice) == "firoozeh"                 # فیروزه: هم‌سر با بکتاش، چهره‌ها هم‌اندازه و هم‌تراز
+            fz = AN(voice) == "firoozeh"                 # فیروزه: هم‌سر و هم‌اندازه‌ی بکتاش
             ph = ph.crop((0, 0, ph.width, int(ph.height * (0.97 if fz else 0.74))))   # نوار نوشته‌ی پایین عکس بیرون
             bb = ph.getbbox()
             ph = ph.crop(bb)
             if fz and "man" in placed:
                 msc, mtop = placed["man"]
-                sc = msc * FACE["man"][3] / FACE["firoozeh"][3]
-                y_face = mtop + FACE["man"][1] * msc
+                sc = msc * BODY["man"]["shoulders"] / BODY["firoozeh"]["shoulders"]      # پیکرها هم‌اندازه
+                y_head = mtop + BODY["man"]["top"] * msc                                   # بالای سرها هم‌تراز
                 ph = ph.resize((int(ph.width * sc), int(ph.height * sc)), Image.LANCZOS)
-                y = int(y_face - (FACE["firoozeh"][1] - bb[1]) * sc)
+                y = int(y_head - (BODY["firoozeh"]["top"] - bb[1]) * sc)
             else:
                 sc = target_h / ph.height
                 ph = ph.resize((int(ph.width * sc), int(ph.height * sc)), Image.LANCZOS)
