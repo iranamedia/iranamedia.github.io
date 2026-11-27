@@ -314,12 +314,41 @@ def topic(it):
     return None
 
 
+BAD_TAGS = ("green screen", "greenscreen", "chroma", "blue screen", "alpha channel", "overlay", "transition", "2d", "cartoon")
+
+
+def keyed(path):
+    """فیلم پرده‌ی سبز یا آبی (برای ویرایشگران، نه برای پخش)؟ سه نما را می‌نگرد."""
+    try:
+        import numpy as np
+        for t in (1.0, 2.5, 4.0):
+            raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", str(t), "-i", path, "-frames:v", "1", "-vf", "scale=160:90",
+                                  "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, timeout=30).stdout
+            if len(raw) < 160 * 90 * 3:
+                continue
+            a = np.frombuffer(raw[:160 * 90 * 3], np.uint8).reshape(90, 160, 3).astype(int)
+            r, g, b_ = a[..., 0], a[..., 1], a[..., 2]
+            green = (g > 120) & (g > r + 60) & (g > b_ + 60)
+            blue = (b_ > 170) & (r < 40) & (g < 90)                  # تنها آبیِ یکدست پرده
+            if green.mean() > 0.15 or blue.mean() > 0.5:
+                return True
+    except Exception:
+        return False
+    return False
+
+
 def _save(url, n):
     out = os.path.join(OUT, f"broll_{n}.mp4")
     req = urllib.request.Request(url, headers={"User-Agent": "IranaMedia/1.0"})
     with urllib.request.urlopen(req, timeout=90) as r, open(out, "wb") as f:
         f.write(r.read())
-    return out if os.path.getsize(out) >= 100_000 else None
+    if os.path.getsize(out) < 100_000:
+        return None
+    if keyed(out):                                    # پرده‌ی سبز: کنار گذاشته می‌شود
+        print(f"b-roll {n}: پرده‌ی سبز/آبی، کنار رفت", flush=True)
+        os.remove(out)
+        return None
+    return out
 
 
 def pixabay(q, n, tags=()):
@@ -332,6 +361,8 @@ def pixabay(q, n, tags=()):
             continue
         if tags and not any(t in v.get("tags", "").lower() for t in tags):
             continue                                  # برچسب‌ها با موضوع نمی‌خواند
+        if any(t in v.get("tags", "").lower() for t in BAD_TAGS):
+            continue                                  # پرده‌ی سبز، کارتون، جلوه‌ی ویرایش
         files = [f for f in v.get("videos", {}).values() if f.get("url") and 1280 <= (f.get("width") or 0) <= 1920
                  and (f.get("width") or 0) > (f.get("height") or 0)]
         if not files:
