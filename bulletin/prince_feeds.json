@@ -173,6 +173,6 @@
  ],
  "errors": {
   "x": "آینه‌های اِکس: https://nitter.privacydev.net: <urlopen error [Errno 111] Connection refused>",
-  "instagram": "اینستاگرام: officialrezapahlavi: HTTP 400: {\"error\":{\"message\":\"(#10) Application does not have permission for this action\",\"code\":10,\"type\":\"OAuthException\",\"fbtrace_id\":\"AcP5XTaCExwu52aA1K3Dl3t\"}}"
+  "instagram": "اینستاگرام: officialrezapahlavi: HTTP 400: {\"error\":{\"message\":\"(#10) Application does not have permission for this action\",\"code\":10,\"type\":\"OAuthException\",\"fbtrace_id\":\"AxciEoQh9ypT4PyfKj-p2yY\"}}"
  }
 }
