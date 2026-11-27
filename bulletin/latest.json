@@ -1,13 +1,13 @@
 {
- "stamp": "ساعت ۱۵ به وقت تهران، آدینه ۶ آذر سال ۲۵۸۵",
+ "stamp": "ساعت ۱۶ به وقت تهران، آدینه ۶ آذر سال ۲۵۸۵",
  "items": [
+  {
+   "title": "سپاه پاسداران انقلاب اسلامی: شلیک هشدار به سوی جنگنده‌ی اف-۱۶ آمریکا در نزدیکی جزیره‌ی هنگام",
+   "body": "سپاه پاسداران انقلاب اسلامی آدینه ۶ آذر در بیانیه‌ای گفت پدافند هوایی آن به سوی یک جنگنده‌ی اف-۱۶ آمریکا که به گفته‌ی سپاه برای کشتی‌های «متخلف» پوشش هوایی فراهم می‌کرد شلیک هشدار کرده است. به گفته‌ی سپاه پاسداران انقلاب اسلامی، این جنگنده در جنوب‌شرقی جزیره‌ی هنگام به حریم هوایی ایران نزدیک شده بود و پس از شلیک هشدار دور شد. ارتش آمریکا تاکنون این گزارش را تأیید یا رد نکرده است."
+  },
   {
    "title": "عراقچی: جمهوری اسلامی آماده‌ی بررسی مشترک حمله‌ی پهپادی کویت با کویت و ایتالیاست",
    "body": "عباس عراقچی، وزیر امور خارجه‌ی جمهوری اسلامی، دست داشتن جمهوری اسلامی در حمله‌ی پهپادی به کویت را که دو تن از ایتالیا را کشت رد کرد و پیشنهاد داد این رویداد با کویت و ایتالیا به‌طور مشترک بررسی شود. به گزارش خبرگزاری فرانسه، او این حمله را «مشکوک» و «نسخه‌ای از پیش آماده برای جنگ» خواند. به گفته‌ی کویت، این دو تن بر اثر افتادن تکه‌های پهپادهای رهگیری‌شده در یک «تأسیسات حیاتی» جان باختند. استیون داتی، وزیر بریتانیایی، این حمله را محکوم کرد."
-  },
-  {
-   "title": "سپاه پاسداران انقلاب اسلامی: پدافند هوایی به سوی یک جنگنده‌ی اف-۱۶ آمریکا شلیک هشدار کرد",
-   "body": "سپاه پاسداران انقلاب اسلامی آدینه ۶ آذر در بیانیه‌ای گفت پدافند هوایی آن به سوی یک جنگنده‌ی اف-۱۶ آمریکا که به گفته‌ی سپاه برای کشتی‌های «متخلف» پوشش هوایی فراهم می‌کرد شلیک هشدار کرده است. به گفته‌ی سپاه پاسداران انقلاب اسلامی، این جنگنده در جنوب‌شرقی جزیره‌ی هنگام به حریم هوایی ایران نزدیک شده بود و پس از شلیک هشدار دور شد. ارتش آمریکا تاکنون این گزارش را تأیید یا رد نکرده است."
   },
   {
    "title": "ائتلاف به رهبری عربستان سعودی: ۵۰ هدف حوثی‌ها در یمن نابود شد",
@@ -39,11 +39,29 @@
   }
  ],
  "sources": [
-  {"name": "AFP / گلف‌نیوز (عراقچی، ترامپ، ائتلاف، فون در لاین)", "url": "https://gulfnews.com/world/mena/middle-east-tensions-trump-signals-victory-as-iran-offers-kuwait-drone-probe-1.500762639"},
-  {"name": "الجزیره و خبرگزاری‌ها (کویت، نفتکش‌ها)", "url": "https://www.aljazeera.com/news/liveblog/2026/11/27/iran-war-live-irans-araghchi-calls-deadly-kuwait-attack-suspicious"},
-  {"name": "ANI به نقل از سپاه پاسداران انقلاب اسلامی (اف-۱۶)", "url": "https://aninews.in/news/world/middle-east/iran8217s-irgc-says-air-defences-fired-warning-shots-at-us-f-16-providing-air-cover-for-violating-vessels20261127124839/"},
-  {"name": "هرانا (هوشیار شعبانی)", "url": "https://www.en-hrana.org/baneh-houshyar-shabani-sentenced-to-eight-years-and-10-months-in-prison/"},
-  {"name": "هرانا (دانیال دبیری)", "url": "https://www.en-hrana.org/danial-dabiri-sentenced-to-five-years-in-prison/"},
-  {"name": "تلگرام رسمی شهریار ایران", "url": "https://t.me/OfficialRezaPahlavi/1920"}
+  {
+   "name": "AFP / گلف‌نیوز (عراقچی، ترامپ، ائتلاف، فون در لاین)",
+   "url": "https://gulfnews.com/world/mena/middle-east-tensions-trump-signals-victory-as-iran-offers-kuwait-drone-probe-1.500762639"
+  },
+  {
+   "name": "الجزیره و خبرگزاری‌ها (کویت، نفتکش‌ها)",
+   "url": "https://www.aljazeera.com/news/liveblog/2026/11/27/iran-war-live-irans-araghchi-calls-deadly-kuwait-attack-suspicious"
+  },
+  {
+   "name": "ANI به نقل از سپاه پاسداران انقلاب اسلامی (اف-۱۶)",
+   "url": "https://aninews.in/news/world/middle-east/iran8217s-irgc-says-air-defences-fired-warning-shots-at-us-f-16-providing-air-cover-for-violating-vessels20261127124839/"
+  },
+  {
+   "name": "هرانا (هوشیار شعبانی)",
+   "url": "https://www.en-hrana.org/baneh-houshyar-shabani-sentenced-to-eight-years-and-10-months-in-prison/"
+  },
+  {
+   "name": "هرانا (دانیال دبیری)",
+   "url": "https://www.en-hrana.org/danial-dabiri-sentenced-to-five-years-in-prison/"
+  },
+  {
+   "name": "تلگرام رسمی شهریار ایران",
+   "url": "https://t.me/OfficialRezaPahlavi/1920"
+  }
  ]
 }
