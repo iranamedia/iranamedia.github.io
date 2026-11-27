@@ -412,7 +412,9 @@ SAD = re.compile(r"اعدام|کشته|جان[\s\u200c]*باخت|درگذشت|م
 
 
 def mood_of(it):
-    return "serious" if SAD.search(it.get("title", "") + " " + it.get("body", "")[:300]) else ""
+    """خبر سوگ (گوینده نشان داده نمی‌شود): تنها از تیتر و نخستین جمله‌ی متن، نه از پیشینه‌ی پایین‌تر خبر."""
+    first = re.split(r"(?<=[.؟!])\s", it.get("body", "").strip(), maxsplit=1)[0][:300]
+    return "serious" if SAD.search(it.get("title", "") + " " + first) else ""
 
 
 def photo_src(voice, mood=""):
@@ -885,7 +887,10 @@ def plan(b, audio, tl):
             if key[0] == "story":
                 on_cam = min(ON_CAM_MAX, seconds * 0.45)
             elif key[0] == "outro":
-                on_cam = min(ON_CAM_MAX, seconds)
+                if all(os.path.exists(p) for p in PRESENTER.values()):   # پایان: هر دو گوینده، مانند آغاز
+                    lead = min(seconds, ON_CAM_MAX + 3)
+                else:
+                    on_cam = min(ON_CAM_MAX, seconds)
             elif all(os.path.exists(p) for p in PRESENTER.values()):   # سرآغاز: دو گوینده (درود و زمان)، سپس سه تیتر نوشته
                 lead = min(max(greet * scale, 2.5), 9.0, seconds * 0.6) if greet else min(TWO_SHOT, seconds * 0.3)
                 on_cam = 0.0
@@ -1044,6 +1049,24 @@ def still_presenter(photo, png, seconds, out):
     clip_presenter(photo, png, seconds, out)
 
 
+def two_shot_clip(i, two, lt, seconds, out, talking=True):
+    """نمای دور استودیو با هر دو گوینده، سه‌بعدی؛ گوینده‌ها گویا اگر چهره‌ی گویایشان ساخته شده."""
+    lay = [os.path.join(OUT, f"studio_two_{n}.png") for n in ("back", "people", "desk")]
+    try:
+        if not (DEPTH and all(os.path.exists(x) for x in lay)):
+            raise subprocess.CalledProcessError(1, "no layers")
+        tp = two_people_video(i, seconds) if talking else None     # گوینده‌ها گویا: لب و پلک
+        people = ({"src": tp[0], "video": True, "mask": tp[1], "zoom": 0.07, "drift": -0.3} if tp
+                  else {"src": lay[1], "zoom": 0.07, "drift": -0.3})
+        clip_parallax([{"src": lay[0], "zoom": 0.03, "drift": 0.5},       # دیوار و نمایشگر
+                       people,                                            # گوینده‌ها
+                       {"src": lay[2], "zoom": 0.12, "drift": -0.6}],     # میز (نزدیک‌ترین)
+                      lt, seconds, out)
+        print(f"shot {i}: نمای دو گوینده، سه‌بعدی" + ("، گویا" if tp else ""), flush=True)
+    except subprocess.CalledProcessError:
+        clip_presenter(two, lt, seconds, out)
+
+
 def two_people_video(i, seconds):
     """لایه‌ی گوینده‌های نمای دو نفره، گویا: چهره‌ی بکتاش (تیترها) و پلک و چهره‌ی گوینده‌ی همراه (SadTalker).
     (ویدیو، نقاب) یا None."""
@@ -1114,20 +1137,7 @@ def build():
             if lead and two and man:                       # دو گوینده در استودیو، سپس بکتاش تیترها را می‌خواند
                 lt = os.path.join(OUT, "lt_head.png")
                 lower_third(b, lt, "تازه‌ترین رویدادهای ایران", "رسانه ایرانا")
-                lay = [os.path.join(OUT, f"studio_two_{n}.png") for n in ("back", "people", "desk")]
-                try:
-                    if not (DEPTH and all(os.path.exists(x) for x in lay)):
-                        raise subprocess.CalledProcessError(1, "no layers")
-                    tp = two_people_video(i, lead)                 # گوینده‌ها گویا: لب و پلک
-                    people = ({"src": tp[0], "video": True, "mask": tp[1], "zoom": 0.07, "drift": -0.3} if tp
-                              else {"src": lay[1], "zoom": 0.07, "drift": -0.3})
-                    clip_parallax([{"src": lay[0], "zoom": 0.03, "drift": 0.5},       # دیوار و نمایشگر
-                                   people,                                            # گوینده‌ها
-                                   {"src": lay[2], "zoom": 0.12, "drift": -0.6}],     # میز (نزدیک‌ترین)
-                                  lt, lead, out)
-                    print("نمای دو گوینده: سه‌بعدی" + ("، گویا" if tp else ""), flush=True)
-                except subprocess.CalledProcessError:
-                    clip_presenter(two, lt, lead, out)
+                two_shot_clip(i, two, lt, lead, out)
                 clips.append(out)
                 if on_cam:
                     out = os.path.join(OUT, f"shot_{i:02d}m.mp4")
@@ -1153,6 +1163,14 @@ def build():
                     slide_end(b, png); clip_still(png, seconds, out)
             else:
                 slide_end(b, png); clip_still(png, seconds, out)
+        elif key[0] == "outro" and sh.get("lead") and studio_two():   # پایان: هر دو گوینده، گویا
+            lower_third(b, png, "تازه‌ترین رویدادهای ایران · شبانروزی، سر هر ساعت", "رسانه ایرانا")
+            lead = sh["lead"]
+            two_shot_clip(i, studio_two(), png, lead, out)
+            if seconds - lead > 0.05:
+                clips.append(out)
+                out = os.path.join(OUT, f"shot_{i:02d}b.mp4")
+                two_shot_clip(i, studio_two(), png, seconds - lead, out, talking=False)
         elif key[0] == "outro":
             photo = studio_photo(key[1])
             if photo:
@@ -1333,10 +1351,11 @@ if __name__ == "__main__":
         audio, tl = os.path.join(SITE, "latest.mp3"), os.path.join(SITE, "timeline.json")
         shots = plan(bb, audio, tl) if os.path.exists(audio) and os.path.exists(tl) else []
         talk = [s for s in shots if s["on_cam"] > 0.5]
-        for s_ in shots:                                # نمای دو نفره‌ی آغاز: بکتاش گویا، گوینده‌ی همراه پلک می‌زند
+        for s_ in shots:                                # نماهای دو نفره (آغاز و پایان): گوینده گویا، دیگری پلک می‌زند
             if s_.get("lead", 0) > 0.5:
-                talk.append({**s_, "i": 100 + s_["i"], "voice": "man", "mood": "", "on_cam": s_["lead"], "talk_start": s_["start"]})
-                talk.append({**s_, "i": 200 + s_["i"], "voice": "woman", "mood": "", "on_cam": s_["lead"], "talk_start": s_["start"], "silent": True})
+                for k, v in ((100, "man"), (200, "woman")):
+                    talk.append({**s_, "i": k + s_["i"], "voice": v, "mood": "", "on_cam": s_["lead"],
+                                 "talk_start": s_["start"], "silent": v != s_["voice"]})
         json.dump(talk, open(os.path.join(SITE, "talk_plan.json"), "w"), ensure_ascii=False)
         print(json.dumps([s["i"] for s in talk]))
         sys.exit(0)
