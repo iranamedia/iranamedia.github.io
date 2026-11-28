@@ -11,16 +11,25 @@
   },
   {
    "title": "فرماندهی مرکزی آمریکا: یک کشتی با پرچم پالائو از کار انداخته شد",
-   "body": "به گزارش ای‌بی‌سی نیوز، فرماندهی مرکزی ارتش آمریکا روز پنجشنبه ۵ آذر اعلام کرد یک کشتی با پرچم پالائو را از کار انداخته است. این اقدام در چارچوب محاصره‌ی دریایی آمریکا علیه جمهوری اسلامی در آبراه پارس و پیرامون تنگه‌ی هرمز انجام شد."
+   "body": "به گزارش ای‌بی‌سی نیوز، فرماندهی مرکزی ارتش آمریکا روز پنجشنبه ۵ آذر اعلام کرد یک کشتی با پرچم پالائو را از کار انداخته است. این اقدام در میانه‌ی درگیری آمریکا با جمهوری اسلامی بر سر تنگه‌ی هرمز انجام شد."
   },
   {
    "title": "اسکات بسنت: جمهوری اسلامی کشتی در حال غرق شدن است",
-   "body": "اسکات بسنت، وزیر خزانه‌داری آمریکا، جمهوری اسلامی را «کشتی در حال غرق شدن» خواند؛ این سخن در میانه‌ی فشار اقتصادی و محاصره‌ی دریایی آمریکا علیه حکومت ایران گفته شد."
+   "body": "اسکات بسنت، وزیر خزانه‌داری آمریکا، جمهوری اسلامی را «کشتی در حال غرق شدن» خواند. این سخن در گزارش خبرگزاری فرانسه درباره‌ی تازه‌ترین رویدادهای جنگ آمده است."
   }
  ],
  "sources": [
-  {"name": "خبرگزاری فرانسه / سی‌بی‌اس (حمله در کویت، مین‌ها، کپلر، بسنت)", "url": "https://newslantern.com/news/25761/2026-11-28/iran-accused-of-drone-strike-in-kuwait-that-killed-two-italian"},
-  {"name": "ای‌بی‌سی نیوز (فرماندهی مرکزی آمریکا)", "url": "https://abcnews.com/International/live-updates/iran-live-updates-tehran-strait-hormuz-safe-demands/?id=138369648"},
-  {"name": "الجزیره (کشته شدن دو ایتالیایی در کویت)", "url": "https://www.aljazeera.com/news/2026/11/26/two-italians-killed-after-iranian-drones-strike-facility-says-kuwait"}
+  {
+   "name": "خبرگزاری فرانسه / سی‌بی‌اس (حمله در کویت، مین‌ها، کپلر، بسنت)",
+   "url": "https://newslantern.com/news/25761/2026-11-28/iran-accused-of-drone-strike-in-kuwait-that-killed-two-italian"
+  },
+  {
+   "name": "ای‌بی‌سی نیوز (فرماندهی مرکزی آمریکا)",
+   "url": "https://abcnews.com/International/live-updates/iran-live-updates-tehran-strait-hormuz-safe-demands/?id=138369648"
+  },
+  {
+   "name": "الجزیره (کشته شدن دو ایتالیایی در کویت)",
+   "url": "https://www.aljazeera.com/news/2026/11/26/two-italians-killed-after-iranian-drones-strike-facility-says-kuwait"
+  }
  ]
 }
