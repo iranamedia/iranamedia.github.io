@@ -475,7 +475,7 @@ def dressed(voice, mood=""):
             luma = (rgb @ np.array([0.299, 0.587, 0.114], np.float32)) / 255
             person = np.asarray(Image.open(pm).convert("L").resize(im.size)).astype(np.float32) / 255
             rows = np.arange(im.height, dtype=np.float32)[:, None] / im.height
-            m = person * (rows > 0.60) * np.clip((0.30 - luma) / 0.08, 0, 1)            # کت تیره، زیر چانه
+            m = person * (rows > 0.50) * np.clip((0.30 - luma) / 0.08, 0, 1)            # کت تیره، زیر چانه
             m = np.asarray(Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3))).astype(np.float32) / 255
             tint = np.array(col, np.float32)[None, None, :] * np.clip(0.42 + 2.4 * luma, 0, 1.6)[..., None]
             im = Image.fromarray(np.clip(rgb * (1 - m[..., None]) + tint * m[..., None], 0, 255).astype(np.uint8))
