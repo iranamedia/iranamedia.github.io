@@ -1,6 +1,10 @@
 {
- "stamp": "ساعت ۹ به وقت تهران، شنبه ۷ آذر سال ۲۵۸۵",
+ "stamp": "ساعت ۱۰ به وقت تهران، شنبه ۷ آذر سال ۲۵۸۵",
  "items": [
+  {
+   "title": "هرانا: بازداشت مهدی محمودیان، از نویسندگان فیلمنامه‌ی «یک تصادف ساده»، در تهران",
+   "body": "به گزارش خبرگزاری مجموعهٔ فعالان حقوق بشر در ایران، مأموران جمهوری اسلامی مهدی محمودیان، کوشنده‌ی سیاسی، را در تهران بازداشت کردند. او از نویسندگان فیلمنامه‌ی «یک تصادف ساده» به کارگردانی جعفر پناهی است؛ فیلمی که جایزه‌ی نخست جشنواره‌ی کن را برد و فیلمنامه‌ی آن نامزد جایزه‌ی اسکار شد. بنا بر گزارش‌ها، اتهام او «تبلیغ علیه نظام» است."
+  },
   {
    "title": "هەنگاو: اعدام مسعود گمشادزهی در زندان مرکزی زاهدان",
    "body": "به گزارش سازمان مدافع حقوق بشر هەنگاو، جمهوری اسلامی مسعود گمشادزهی ۲۹ ساله را سحرگاه سه‌شنبه ۳ آذر در زندان مرکزی زاهدان اعدام کرد. او نزدیک به سه سال پیش بازداشت و به کشتن یک نظامی با سلاح کمری متهم شده بود. این سازمان مدافع حقوق بشر می‌گوید از او زیر شکنجه اعتراف گرفته شد و او در دادگاه این اعترافات را پس گرفت. نه رسانه‌های حکومتی و نه قوه قضاییه جمهوری اسلامی این اعدام را اعلام کرده‌اند."
@@ -23,10 +27,33 @@
   }
  ],
  "sources": [
-  {"name": "هەنگاو (اعدام مسعود گمشادزهی)", "url": "https://hengaw.org/en/content/news-execution-2026-11-26-18307"},
-  {"name": "هەنگاو (اعدام سجاد شعبانی)", "url": "https://hengaw.org/en/content/news-execution-2026-11-26-18306"},
-  {"name": "ای‌بی‌سی نیوز (فرماندهی مرکزی آمریکا)", "url": "https://abcnews.com/International/live-updates/iran-live-updates-tehran-strait-hormuz-safe-demands/?id=138369648"},
-  {"name": "سی‌بی‌اس (نیروی دریایی ارتش جمهوری اسلامی)", "url": "https://www.cbsnews.com/live-updates/iran-war-trump-us-threats-diplomacy-strait-of-hormuz/"},
-  {"name": "تلگرام رسمی شهریار ایران", "url": "https://t.me/OfficialRezaPahlavi/1920"}
+  {
+   "name": "هرانا (مهدی محمودیان)",
+   "url": "https://www.en-hrana.org/mehdi-mahmoudian-arrested-by-security-forces/"
+  },
+  {
+   "name": "ورایتی (مهدی محمودیان)",
+   "url": "https://variety.com/2026/film/news/it-was-just-an-accident-writer-mehdi-mahmoudian-arrested-iran-1236959405/"
+  },
+  {
+   "name": "هەنگاو (اعدام مسعود گمشادزهی)",
+   "url": "https://hengaw.org/en/content/news-execution-2026-11-26-18307"
+  },
+  {
+   "name": "هەنگاو (اعدام سجاد شعبانی)",
+   "url": "https://hengaw.org/en/content/news-execution-2026-11-26-18306"
+  },
+  {
+   "name": "ای‌بی‌سی نیوز (فرماندهی مرکزی آمریکا)",
+   "url": "https://abcnews.com/International/live-updates/iran-live-updates-tehran-strait-hormuz-safe-demands/?id=138369648"
+  },
+  {
+   "name": "سی‌بی‌اس (نیروی دریایی ارتش جمهوری اسلامی)",
+   "url": "https://www.cbsnews.com/live-updates/iran-war-trump-us-threats-diplomacy-strait-of-hormuz/"
+  },
+  {
+   "name": "تلگرام رسمی شهریار ایران",
+   "url": "https://t.me/OfficialRezaPahlavi/1920"
+  }
  ]
 }
